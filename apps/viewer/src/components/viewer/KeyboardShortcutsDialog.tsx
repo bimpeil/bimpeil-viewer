@@ -3,17 +3,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { useState, useLayoutEffect, useCallback } from 'react';
-import { X, Sparkles, Info, Keyboard, ExternalLink, GraduationCap } from 'lucide-react';
+import { X, Info, Keyboard, GraduationCap } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LearnTab } from '@/components/tours/LearnTab';
-import { navigateToPath } from '@/services/app-navigation';
 import { useTranslation } from '@/i18n';
 import { registerKeyboardCommand } from '@/lib/commands/dispatcher';
 import { AboutTab } from './KeyboardShortcutsDialogTabs';
 import { ShortcutsTab } from './ShortcutsTab';
-import { WhatsNewTab } from './KeyboardShortcutsWhatsNewTab';
 
 // Re-exported for `ViewportWelcomeCard.privacy.test.tsx` (#5119): the start
 // screen renders the same banner and asserts it's the same component, not a
@@ -53,23 +51,16 @@ export function KeyboardShortcutsDialog({ open, onClose, initialTab }: InfoDialo
           explicitly (CodeRabbit, #5817 review) rather than leaving it
           unset, which some Radix versions read as "forgot to wire one up"
           and warn about in dev. */}
-      <DialogContent hideCloseButton aria-describedby={undefined} className="max-w-md w-full gap-0 p-0 bg-card">
+      <DialogContent hideCloseButton aria-describedby={undefined} className="max-w-md w-full grid-cols-[minmax(0,1fr)] gap-0 p-0 bg-card">
+        {/* BIMpeil: grid-cols-[minmax(0,1fr)] keeps long Learn descriptions from widening
+            the content past the max-w-md card. */}
         {/* Header — the MCP CTA lives here, in line with the title, so
             it's a discoverable "what else can this do?" affordance
             without crowding the modeling toolbar. */}
         <div className="flex items-center justify-between gap-2 p-4 border-b">
           <DialogTitle className="text-lg font-semibold shrink-0">{t('keyboardShortcuts.header.title')}</DialogTitle>
           <div className="flex items-center gap-1 min-w-0">
-            <button
-              type="button"
-              onClick={() => { onClose(); navigateToPath('/mcp'); }}
-              className="group inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors px-3 py-1.5 text-xs font-medium text-primary"
-              aria-label={t('keyboardShortcuts.header.mcpAriaLabel')}
-            >
-              <Sparkles className="h-3.5 w-3.5 group-hover:rotate-12 transition-transform" />
-              <span className="whitespace-nowrap">{t('keyboardShortcuts.header.mcpCta')}</span>
-              <ExternalLink className="h-3 w-3 opacity-60" />
-            </button>
+            {/* BIMpeil: no "Drive from any LLM" button */}
             <IconButton label={t('viewerShell.dialog.close')} variant="ghost" size="icon-sm" onClick={onClose}>
               <X className="h-4 w-4" />
             </IconButton>
@@ -79,16 +70,13 @@ export function KeyboardShortcutsDialog({ open, onClose, initialTab }: InfoDialo
         {/* Tabbed Content */}
         {/* The dialog unmounts when closed, so defaultValue re-applies on
             every open - enough for deep-linking without controlled tabs. */}
-        <Tabs defaultValue={initialTab ?? 'about'} className="w-full">
+        {/* BIMpeil: no What's New tab, so a deep link to it shows About */}
+        <Tabs defaultValue={!initialTab || initialTab === 'whatsnew' ? 'about' : initialTab} className="w-full">
           <div className="px-4 pt-4">
             <TabsList className="w-full">
               <TabsTrigger value="about" className="flex-1 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
                 <Info className="h-3.5 w-3.5" />
                 {t('keyboardShortcuts.tabs.about')}
-              </TabsTrigger>
-              <TabsTrigger value="whatsnew" className="flex-1 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
-                <Sparkles className="h-3.5 w-3.5" />
-                {t('keyboardShortcuts.tabs.whatsNew')}
               </TabsTrigger>
               <TabsTrigger value="shortcuts" className="flex-1 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
                 <Keyboard className="h-3.5 w-3.5" />
@@ -104,7 +92,6 @@ export function KeyboardShortcutsDialog({ open, onClose, initialTab }: InfoDialo
           {/* Each wraps exactly one child — single-line, so a fifth tab
               (Preferences, #5509) didn't need a module-size budget raise. */}
           <TabsContent value="about" className="p-4 max-h-80 overflow-y-auto"><AboutTab /></TabsContent>
-          <TabsContent value="whatsnew" className="p-4 max-h-96 overflow-y-auto"><WhatsNewTab /></TabsContent>
           <TabsContent value="shortcuts" className="p-4 max-h-80 overflow-y-auto"><ShortcutsTab /></TabsContent>
           <TabsContent value="learn" className="p-4 max-h-80 overflow-y-auto"><LearnTab onClose={onClose} /></TabsContent>
         </Tabs>

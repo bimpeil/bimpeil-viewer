@@ -87,73 +87,38 @@ export function AboutTab() {
 
   return (
     <div className="space-y-3">
-      {/* Header */}
+      {/* BIMpeil: own name, with attribution to IfcLite (MPL-2.0) */}
       <div className="text-center pb-2 border-b">
-        <h3 className="text-xl font-bold">{t('keyboardShortcuts.about.appName')}</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">{t('keyboardShortcuts.about.versionLabel', { version: __APP_VERSION__ })} &middot; {formatBuildDate(__BUILD_DATE__)}</p>
+        <h3 className="text-xl font-bold">BIMpeil</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">{formatBuildDate(__BUILD_DATE__)}</p>
       </div>
 
-      {/* Links */}
-      <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1.5 text-xs">
-        <a
-          href="https://ifclite.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {t('keyboardShortcuts.about.homepageLink')}
-          <ExternalLink className="h-3 w-3" />
-        </a>
-        <a
-          href="https://ifclite.dev/docs/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {t('keyboardShortcuts.about.docsLink')}
-          <ExternalLink className="h-3 w-3" />
-        </a>
-        <a
-          href={GITHUB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <GithubIcon className="h-3.5 w-3.5" />
-          {t('keyboardShortcuts.about.githubLink')}
-        </a>
-        <a
-          href={`${GITHUB_URL}/issues`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {t('keyboardShortcuts.about.reportIssueLink')}
-          <ExternalLink className="h-3 w-3" />
-        </a>
-        <span className="text-muted-foreground">{t('keyboardShortcuts.about.license')}</span>
-      </div>
-
-      {/* Feature chips */}
-      <div className="flex flex-wrap gap-1 justify-center pt-2 border-t">
-        {[
-          'WebGPU', 'IFC2x3', 'IFC4', 'IFC4X3', 'IFC5/IFCX',
-          'Federation', 'Measurements', 'Sections',
-          'Properties', 'Data tables', 'Lens rules', 'IDS',
-          '2D drawings', 'BCF', 'Scripting', 'AI assistant',
-          'glTF export', 'CSV', 'Parquet',
-        ].map((tag) => (
-          <span
-            key={tag}
-            className="px-2 py-0.5 text-2xs rounded-full bg-muted/60 text-muted-foreground"
+      <div className="text-center text-xs text-muted-foreground space-y-1.5">
+        <p>
+          Viewer gebaseerd op IfcLite {t('keyboardShortcuts.about.versionLabel', { version: __APP_VERSION__ })} van LTplus AG.
+        </p>
+        <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1.5">
+          <a
+            href="https://ifclite.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
           >
-            {tag}
-          </span>
-        ))}
+            {t('keyboardShortcuts.about.homepageLink')}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+          >
+            <GithubIcon className="h-3.5 w-3.5" />
+            {t('keyboardShortcuts.about.githubLink')}
+          </a>
+          <span>{t('keyboardShortcuts.about.license')}</span>
+        </div>
       </div>
-
-      {/* Privacy & Security */}
-      <PrivacyBanner />
 
       {/* Package Versions */}
       {packageVersions.length > 0 && (
