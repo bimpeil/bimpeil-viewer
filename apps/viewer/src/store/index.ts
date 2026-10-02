@@ -70,6 +70,7 @@ import { withPlacementHistory } from './placement-history.js';
 import { withVisibilityOwnershipInvalidation } from './visibility-invalidation.js';
 import { registerSidebarExclusivity, registerHierarchyLeftSync, registerDrawingInspectorSheetSync, reconcileInitialStoreSync } from './store-sync.js';
 import { registerOverlayThemeSync } from '@/lib/viewport-ui/overlay-theme-sync';
+import { registerAlwaysFloat } from '@/bimpeil/alwaysFloat';
 
 // Re-export types for consumers
 export type * from './types.js';
@@ -266,6 +267,7 @@ export function getViewerStoreApi() {
   registerOverlayThemeSync(store); // `--overlay-*` on <html> follow `theme` in every app that holds the store (#5490)
   registerWorkflowArtifactInvalidation(store);
   reconcileInitialStoreSync(store);
+  registerAlwaysFloat(store); // BIMpeil: panels always float, nothing open on start
   return store;
 }
 

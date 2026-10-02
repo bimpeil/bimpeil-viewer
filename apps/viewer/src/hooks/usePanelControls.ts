@@ -172,6 +172,8 @@ export function usePanelControls(): PanelControls {
 
   const closePanel = useCallback((id: WorkspacePanelId) => {
     if (isLeftPanel(id)) {
+      // BIMpeil: Hierarchy floats too (bimpeil/alwaysFloat.ts), so close that window as well
+      useViewerStore.getState().closeFloatingPanel(id);
       useViewerStore.getState().setLeftPanelCollapsed(true);
       return;
     }

@@ -8,6 +8,7 @@ import { replayWorkspaceHistory } from '@/lib/model-placement/history';
 import { registerKeyboardCommand, type CommandRun } from '@/lib/commands/dispatcher';
 import type { KeyCommandId } from '@/lib/commands/keyboard-commands';
 import { useViewerStore } from '@/store';
+import { SIDEBAR_PANEL_FLAGS } from '@/store/store-sync';
 import { showAllFromStore } from '@/store/homeView';
 import { hideSelectionFromStore } from '@/store/hideSelection';
 import { workspacePanelForShortcutCode } from '@/lib/panels/registry';
@@ -25,14 +26,17 @@ interface KeyboardShortcutsOptions { enabled?: boolean }
 function escapeGlobal(closeAll: boolean): void {
   const state = useViewerStore.getState();
   if (closeAll) {
-    state.showWorkspacePanel('properties');
+    // BIMpeil: on desktop panels always float (bimpeil/alwaysFloat.ts); showing
+    // Information or the left column here would reopen them as floats
+    if (state.isMobile) state.showWorkspacePanel('properties');
+    else useViewerStore.setState(Object.fromEntries(SIDEBAR_PANEL_FLAGS.map(([flag]) => [flag, false])));
     state.resetDockLayout();
     closeAllPanelWindows();
     useViewerStore.setState(bottomPanelFlags(null));
     state.setOverridesPanelVisible(false);
     state.setChatPanelVisible(false);
     state.setSheetPanelVisible(false);
-    state.setLeftPanelCollapsed(false);
+    if (state.isMobile) state.setLeftPanelCollapsed(false);
     state.setRightPanelCollapsed(false);
   }
   if (state.activeTool !== 'select') state.setActiveTool('select', 'esc');

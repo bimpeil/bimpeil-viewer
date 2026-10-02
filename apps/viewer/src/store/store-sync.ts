@@ -22,6 +22,8 @@ export const SIDEBAR_PANEL_FLAGS: ReadonlyArray<readonly [keyof ViewerState, Wor
 /** Keep the unified sidebar to one docked panel when flags change (#1208). */
 export function registerSidebarExclusivity(store: StoreApi<ViewerState>): void {
   store.subscribe((state, prev) => {
+    // BIMpeil: on desktop every panel floats (bimpeil/alwaysFloat.ts), so several may be open at once
+    if (!state.isMobile) return;
     let opened: WorkspacePanelId | null = null;
     for (const [flag, id] of SIDEBAR_PANEL_FLAGS) {
       if (state[flag] && !prev[flag]) { opened = id; break; }
