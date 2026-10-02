@@ -89,7 +89,11 @@ export function AboutTab() {
     <div className="space-y-3">
       {/* BIMpeil: own name, with attribution to IfcLite (MPL-2.0) */}
       <div className="text-center pb-2 border-b">
-        <h3 className="text-xl font-bold">BIMpeil</h3>
+        {/* BIMpeil: logo, lichte en donkere versie (public/bimpeil-logo*.svg, patch 0008) */}
+        <h3 className="flex justify-center">
+          <img src={`${import.meta.env.BASE_URL}bimpeil-logo.svg`} alt="BIMpeil" className="h-10 w-auto dark:hidden" />
+          <img src={`${import.meta.env.BASE_URL}bimpeil-logo-dark.svg`} alt="BIMpeil" className="h-10 w-auto hidden dark:block" />
+        </h3>
         <p className="text-xs text-muted-foreground mt-0.5">{formatBuildDate(__BUILD_DATE__)}</p>
       </div>
 
