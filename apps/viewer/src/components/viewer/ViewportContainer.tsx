@@ -16,7 +16,6 @@ import { ViewportOverlays } from './ViewportOverlays';
 import { WebGpuTroubleshootingDetails, webGpuBannerBlurb } from './WebGpuTroubleshooting';
 import { ViewportWelcomeCard } from './ViewportWelcomeCard';
 import { ViewportLoadErrorCard } from './ViewportLoadErrorCard';
-import { WelcomeFooterChips } from './WelcomeFooterChips';
 import { useTranslation } from '@/i18n';
 import { MergeLayersBanner } from './MergeLayersBanner';
 import { GeometryModeBanner } from './GeometryModeBanner';
@@ -935,7 +934,7 @@ export function ViewportContainer() {
               dropped: it repeated toolbar affordances without offering an
               action, and its height pushed the welcome card off-screen. */}
 
-          <WelcomeFooterChips />
+          {/* BIMpeil: no footer chips (ifclite.dev, shortcuts); shortcuts stay on the ? key */}
 
           </div>
         </div>
