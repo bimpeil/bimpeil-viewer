@@ -47,8 +47,18 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, recentFiles, loadFile
   return (
     <div {...tourAnchor(TOUR_ANCHORS.emptyStateCard)} className="max-w-md w-full bg-white dark:bg-[#16161e] border border-zinc-300 dark:border-[#3b4261] p-8 flex flex-col items-center transition-transform hover:-translate-y-1 duration-200 shadow-lg">
 
-      <h2 className="text-3xl font-black tracking-tighter text-center mb-2 text-zinc-900 dark:text-[#a9b1d6]">
-        BIMpeil
+      {/* BIMpeil: logo, lichte en donkere versie (public/bimpeil-logo*.svg) */}
+      <h2 className="mb-4">
+        <img
+          src={`${import.meta.env.BASE_URL}bimpeil-logo.svg`}
+          alt="BIMpeil"
+          className="h-14 w-auto dark:hidden"
+        />
+        <img
+          src={`${import.meta.env.BASE_URL}bimpeil-logo-dark.svg`}
+          alt="BIMpeil"
+          className="h-14 w-auto hidden dark:block"
+        />
       </h2>
       <p className="text-zinc-500 dark:text-[#565f89] font-mono text-sm text-center mb-8 border-b border-zinc-200 dark:border-[#3b4261] pb-4 w-full">
         Van alles met je IFC.
