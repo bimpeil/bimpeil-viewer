@@ -64,7 +64,11 @@ export function registerAlwaysFloat(store: StoreApi<ViewerState>): void {
     }
     const floatable = (id: WorkspacePanelId) => !s.poppedOutIds.includes(id);
 
-    // Hierarchy docked in the left column
+    // Hierarchy docked in the left column, or a model was opened (same test as
+    // selectHasModelsLoaded in hooks/model-presence.ts, inlined to avoid an import cycle)
+    const hasModels = (v: ViewerState) => v.models.size > 0 || (v.geometryResult?.meshes?.length ?? 0) > 0;
+    const modelOpened = s.models.size > before.models.size || (hasModels(s) && !hasModels(before));
+    if (modelOpened && floatable('hierarchy')) float('hierarchy');
     if (!s.leftPanelCollapsed) {
       float('hierarchy');
       s.setLeftPanelCollapsed(true);
