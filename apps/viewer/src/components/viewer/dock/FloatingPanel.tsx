@@ -42,6 +42,18 @@ const RESIZE_EDGE_MARGIN = 40;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/** BIMpeil: resize edges of a free-floating panel. The top is the drag handle. */
+type FreeResizeEdge = 'left' | 'right' | 'bottom' | 'bottom-left' | 'bottom-right';
+
+// Edges below the header (top-8) so they don't steal the drag; corners last so they win
+const FREE_RESIZE_HANDLES: ReadonlyArray<readonly [FreeResizeEdge, string]> = [
+  ['left', 'left-0 top-8 bottom-0 w-1.5 cursor-ew-resize'],
+  ['right', 'right-0 top-8 bottom-0 w-1.5 cursor-ew-resize'],
+  ['bottom', 'bottom-0 inset-x-0 h-1.5 cursor-ns-resize'],
+  ['bottom-left', 'bottom-0 left-0 h-3 w-3 cursor-nesw-resize'],
+  ['bottom-right', 'bottom-0 right-0 h-3 w-3 cursor-nwse-resize'],
+];
+
 interface FloatingPanelProps {
   panel: FloatingPanelState;
   title: string;
@@ -120,9 +132,9 @@ export function FloatingPanel({
     window.addEventListener('mouseup', up);
   };
 
-  // Resize: free → bottom-right corner; left/right snap → inner edge (width);
-  // bottom snap → top edge (height).
-  const onResizeStart = (e: React.MouseEvent) => {
+  // Resize: free → left, right and bottom edges plus the two bottom corners
+  // (BIMpeil); left/right snap → inner edge (width); bottom snap → top edge (height).
+  const onResizeStart = (e: React.MouseEvent, edge: FreeResizeEdge = 'bottom-right') => {
     const el = ref.current;
     if (!el) return;
     e.preventDefault();
@@ -131,6 +143,8 @@ export function FloatingPanel({
     const rect = el.getBoundingClientRect();
     const startW = rect.width;
     const startH = rect.height;
+    // Left edge of the panel within its container; growing to the left stops at 0
+    const startX = rect.left - ((el.offsetParent as HTMLElement | null)?.getBoundingClientRect().left ?? 0);
     const px = e.clientX;
     const py = e.clientY;
     const snap = panel.snap;
@@ -154,7 +168,14 @@ export function FloatingPanel({
       } else if (snap === 'left') {
         onRect({ w: clamp(startW + dx, MIN_W, maxW) });
       } else {
-        onRect({ w: clamp(startW + dx, MIN_W, maxW), h: clamp(startH + dy, MIN_H, maxH) });
+        const next: Partial<Pick<FloatingPanelState, 'x' | 'w' | 'h'>> = {};
+        if (edge === 'right' || edge === 'bottom-right') next.w = clamp(startW + dx, MIN_W, maxW);
+        if (edge === 'left' || edge === 'bottom-left') {
+          next.w = clamp(startW - dx, MIN_W, Math.min(maxW, startX + startW));
+          next.x = startX + startW - next.w;
+        }
+        if (edge !== 'left' && edge !== 'right') next.h = clamp(startH + dy, MIN_H, maxH);
+        onRect(next);
       }
     };
     const up = () => {
@@ -230,19 +251,28 @@ export function FloatingPanel({
       <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
 
       {/* Resize affordance */}
-      <div
-        onMouseDown={onResizeStart}
-        className={cn(
-          'absolute z-10',
-          panel.snap === 'bottom'
-            ? 'top-0 inset-x-0 h-1.5 cursor-row-resize'
-            : panel.snap === 'left'
-              ? 'right-0 inset-y-0 w-1.5 cursor-col-resize'
-              : panel.snap === 'right'
-                ? 'left-0 inset-y-0 w-1.5 cursor-col-resize'
-                : 'bottom-0 right-0 h-3 w-3 cursor-nwse-resize',
-        )}
-      />
+      {panel.snap === 'free' ? (
+        // BIMpeil: free panels resize from the left, right and bottom edges and both bottom corners
+        FREE_RESIZE_HANDLES.map(([edge, className]) => (
+          <div
+            key={edge}
+            onMouseDown={(e) => onResizeStart(e, edge)}
+            className={cn('absolute z-10', className)}
+          />
+        ))
+      ) : (
+        <div
+          onMouseDown={onResizeStart}
+          className={cn(
+            'absolute z-10',
+            panel.snap === 'bottom'
+              ? 'top-0 inset-x-0 h-1.5 cursor-row-resize'
+              : panel.snap === 'left'
+                ? 'right-0 inset-y-0 w-1.5 cursor-col-resize'
+                : 'left-0 inset-y-0 w-1.5 cursor-col-resize',
+          )}
+        />
+      )}
     </div>
   );
 }
