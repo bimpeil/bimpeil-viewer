@@ -24,7 +24,6 @@ import {
   PanelRight,
   PanelBottom,
   Square,
-  Pin,
   X,
   GripVertical,
 } from 'lucide-react';
@@ -81,7 +80,6 @@ export function FloatingPanel({
   onRect,
   onSnap,
   onFocus,
-  onDock,
   onClose,
 }: FloatingPanelProps) {
   const { t } = useTranslation();
@@ -224,17 +222,7 @@ export function FloatingPanel({
           {snapBtn('right', PanelRight, t('shellChrome.floatingPanel.snapRight'))}
           {snapBtn('free', Square, t('shellChrome.floatingPanel.freeFloat'))}
           <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
-          {/* Dock reserves space (panel + model side by side). */}
-          <button
-            type="button"
-            data-no-drag
-            title={t('shellChrome.floatingPanel.dockTitle')}
-            aria-label={t('shellChrome.floatingPanel.dockAriaLabel')}
-            onClick={onDock}
-            className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-muted transition-colors"
-          >
-            <Pin className="h-3.5 w-3.5" />
-          </button>
+          {/* BIMpeil: no dock button; panels always float (bimpeil/alwaysFloat.ts) */}
           <button
             type="button"
             data-no-drag
