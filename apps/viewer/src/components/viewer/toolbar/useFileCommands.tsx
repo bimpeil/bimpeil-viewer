@@ -29,6 +29,7 @@ import { FederationSetupControls } from '../FederationSetupControls';
 
 import { FILE_ACCEPT, isModelSidecarFile, isSupportedModelFile } from '@/services/supported-model-files';
 import { captureModelTags, restoreModelTags } from '@/lib/model-tags/carry-over';
+import { openBimpeilFiles, useBimpeilLocalFiles } from '@/bimpeil/localFiles';
 
 // FILE_ACCEPT offers `.dxf` while `isSupportedModelFile` rejects it: DXF
 // files are 2D reference underlays, not models, and split off to the DXF
@@ -214,7 +215,7 @@ export function useFileCommands(): FileCommands {
 
   // Preferred Add-Model path: the picker captures a handle per file so the
   // resulting federation can be refreshed. Falls back to the hidden <input>.
-  const handleAddModelClick = useCallback(async () => {
+  const addLocalModels = useCallback(async () => {
     if (!supportsFileSystemAccess()) {
       addModelInputRef.current?.click();
       return;
@@ -232,7 +233,7 @@ export function useFileCommands(): FileCommands {
   // a live FileSystemFileHandle for each file — that handle is what lets the
   // Refresh button re-read the same file from disk later (issue #1345). Browsers
   // without the API fall back to the hidden <input type="file">.
-  const handleOpenClick = useCallback(async () => {
+  const openLocalFiles = useCallback(async () => {
     if (!supportsFileSystemAccess()) {
       fileInputRef.current?.click();
       return;
@@ -249,6 +250,11 @@ export function useFileCommands(): FileCommands {
 
     prepareAndOpen(opened.map(o => o.file), opened.map(o => o.handle));
   }, [prepareAndOpen]);
+
+  // BIMpeil: Open and Add Model show the BIMpeil files panel; it reaches the local pickers above via events
+  useBimpeilLocalFiles(openLocalFiles, addLocalModels);
+  const handleOpenClick = useCallback(async () => openBimpeilFiles(), []);
+  const handleAddModelClick = handleOpenClick;
 
   // Refresh re-reads files from disk and re-parses them. Offered when EVERY
   // loaded model has a live FS Access handle (a single model, or a federation

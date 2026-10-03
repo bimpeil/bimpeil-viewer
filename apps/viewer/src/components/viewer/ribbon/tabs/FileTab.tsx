@@ -8,13 +8,12 @@
  */
 
 import React from 'react';
-import { AddFile, CloudSources, Loading, OpenFile, SaveFederationSetup, Refresh, Share, CollabsRoom } from '@/icons';
+import { AddFile, Loading, OpenFile, SaveFederationSetup, Share, CollabsRoom } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useIfc } from '@/hooks/useIfc';
 import { isCollabEnabled } from '@/lib/collab/config';
 import { useTranslation } from '@/i18n';
 import type { FileCommands } from '../../toolbar/useFileCommands';
-import { useWorkspacePanelControls } from '../../toolbar/useWorkspacePanelControls';
 import { surfaceCommand } from '../../surface-commands';
 import { RibbonExportGroup } from './RibbonExportGroup';
 import { RIBBON_EXPORT_ICONS } from './ribbon-export-icons';
@@ -28,8 +27,8 @@ import { RibbonCommandLargeButton, RibbonCommandSmallButton } from '../command-b
 /** Renders model input/output commands, with compact setup actions beside the prominent export controls. */
 export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
   const { t } = useTranslation();
-  const { handleOpenClick, handleAddModelClick, handleRefresh, canRefresh, hasModelsLoaded, openShareDialog } = fileCommands;
-  const { loading, models } = useIfc();
+  const { handleOpenClick, handleAddModelClick, hasModelsLoaded, openShareDialog } = fileCommands;
+  const { loading } = useIfc();
   const saveSetup = surfaceCommand('file:save-federation-setup', 'ribbon');
   const shareCommand = surfaceCommand('file:share', 'ribbon');
   const openSetup = surfaceCommand('file:open-federation-setup', 'ribbon');
@@ -46,13 +45,6 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
   const collabRoomId = useViewerStore((s) => s.collabRoomId);
   const collabPanelVisible = useViewerStore((s) => s.collabPanelVisible);
 
-  // Cloud sources (CDE integrations) is a model SOURCE, so it belongs on the
-  // tab that moves bytes — not with the analysis panels. Until now the
-  // ActivityBar rail was its only entry point, the same gap Location zones
-  // had before #2508, and the parity guard cannot see it: both toolbars
-  // already reach `toggleWorkspacePanel` for other panels.
-  const { activeWorkspacePanels, handleToggleRightPanel } = useWorkspacePanelControls('ribbon');
-
   return (
     <>
       <RibbonGroup label={t('ribbon.file.modelGroup')}>
@@ -63,26 +55,13 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
           className={loading ? '[&_svg]:animate-spin' : undefined}
           commandContext={{ openFiles: () => { void handleOpenClick(); } }}
         />
-        <RibbonCommandLargeButton
-          commandId="panel:sources"
-          icon={CloudSources}
-          tooltip={t('ribbon.file.cloudSourcesTooltip')}
-          active={activeWorkspacePanels.has('sources')}
-          commandContext={{ activateRightPanel: () => handleToggleRightPanel('sources') }}
-        />
+        {/* BIMpeil: no Sources (Dropbox, Microsoft, Dalux) and no Refresh (local file handles only) */}
         <RibbonSmallStack>
           <RibbonCommandSmallButton
             commandId="file:add-model"
             icon={AddFile}
             disabled={loading || !hasModelsLoaded}
             commandContext={{ addModel: () => { void handleAddModelClick(); } }}
-          />
-          <RibbonCommandSmallButton
-            commandId="file:refresh"
-            icon={Refresh}
-            tooltip={models.size > 1 ? t('ribbon.file.refreshModelsTooltip') : t('ribbon.file.refreshModelTooltip')}
-            disabled={loading || !canRefresh}
-            commandContext={{ refreshModels: handleRefresh }}
           />
         </RibbonSmallStack>
         {[[saveSetup, openSetup], [modelTags]].map((commands) => (

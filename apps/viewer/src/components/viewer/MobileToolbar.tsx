@@ -9,6 +9,7 @@
  */
 
 import React, { useRef, useCallback, useMemo } from 'react';
+import { openBimpeilFiles, useBimpeilLocalFiles } from '@/bimpeil/localFiles';
 import { Download, MoreHorizontal } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,12 @@ export function MobileToolbar() {
     e.target.value = '';
   }, [loadFilesSequentially]);
 
+  // BIMpeil: Open and Add Model show the BIMpeil files panel; it reaches these local pickers via events
+  useBimpeilLocalFiles(
+    useCallback(() => fileInputRef.current?.click(), []),
+    useCallback(() => addModelInputRef.current?.click(), []),
+  );
+
   // Every export the toolbars and the palette offer, from the same registry
   // rows and through the same handlers and dialogs (#5842). The dialog is
   // hosted outside the menu so it outlives the menu closing.
@@ -143,7 +150,7 @@ export function MobileToolbar() {
         size="icon-sm"
         className="h-9 w-9 flex-shrink-0"
         data-command-id={openFile.id}
-        onClick={() => runSurfaceCommand(openFile, { surface: 'mobile', openFiles: () => fileInputRef.current?.click() })}
+        onClick={() => runSurfaceCommand(openFile, { surface: 'mobile', openFiles: openBimpeilFiles })}
         disabled={loading}
         aria-label={mobileLabel(openFile)}
       >
@@ -161,7 +168,7 @@ export function MobileToolbar() {
           size="icon-sm"
           className="h-9 w-9 flex-shrink-0 text-[#9ece6a]"
           data-command-id={addModel.id}
-          onClick={() => runSurfaceCommand(addModel, { surface: 'mobile', addModel: () => addModelInputRef.current?.click() })}
+          onClick={() => runSurfaceCommand(addModel, { surface: 'mobile', addModel: openBimpeilFiles })}
           disabled={loading}
           aria-label={mobileLabel(addModel)}
         >

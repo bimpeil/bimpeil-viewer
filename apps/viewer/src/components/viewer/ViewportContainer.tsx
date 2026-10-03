@@ -44,10 +44,9 @@ import { useIfc } from '@/hooks/useIfc';
 import { useWebGpuOpenGuard } from '@/hooks/useWebGpuOpenGuard';
 import type { RecentFileEntry } from '@/lib/recent-files';
 import {
-  supportsFileSystemAccess,
-  openIfcFilesWithHandles,
   handlesFromDataTransfer,
 } from '@/services/file-system-access';
+import { openBimpeilFiles } from '@/bimpeil/localFiles';
 import { FILE_ACCEPT, isModelSidecarFile, isSupportedModelFile } from '@/services/supported-model-files';
 import { usePreparedModelFileRoute } from '@/hooks/ingest/usePreparedModelFileRoute';
 import {
@@ -488,29 +487,8 @@ export function ViewportContainer() {
     attempt();
   }, [prepareAndRoute, isSupportedFile, guardWebGpu]);
 
-  // Preferred open path: the File System Access picker (Chromium) captures a
-  // live handle per file so the model can be refreshed from disk. Falls back to
-  // the hidden <input type="file"> on browsers without the API.
-  const handleOpenClick = useCallback(async () => {
-    if (!guardWebGpu(() => { void handleOpenClick(); })) return;
-    if (!supportsFileSystemAccess()) {
-      fileInputRef.current?.click();
-      return;
-    }
-    const opened = await openIfcFilesWithHandles();
-    if (!opened) return;
-    // DXF reference underlays split off before model routing (issue #1782).
-    const dxfPicked = opened.filter((o) => o.file.name.toLowerCase().endsWith('.dxf'));
-    if (dxfPicked.length > 0) void ingestDxfFiles(dxfPicked.map((o) => o.file));
-    const supported = opened.filter((o) => isSupportedFile(o.file) || isModelSidecarFile(o.file));
-    if (supported.length === 0) {
-      reportFileOpenRejected(opened.map((o) => o.file));
-      return;
-    }
-
-    const files = supported.map((o) => o.file);
-    prepareAndRoute(files, supported.map((o) => o.handle));
-  }, [prepareAndRoute, isSupportedFile, guardWebGpu]);
+  // BIMpeil: the welcome card opens the BIMpeil files panel; local files are opened from there
+  const handleOpenClick = useCallback(async () => openBimpeilFiles(), []);
 
   const handleStartBlank = useCallback(async () => {
     if (!guardWebGpu(() => { void handleStartBlank(); })) return;
