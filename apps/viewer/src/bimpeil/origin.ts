@@ -8,18 +8,28 @@
  * verwijzing. Een lokaal geopend model heeft er geen. Nodig om een federatie op te slaan (V3).
  */
 
-import type { FederatedModel } from '@/store';
+import { useViewerStore, type FederatedModel } from '@/store';
 
 export interface BimpeilModelRef {
   projectId: string;
   fileId: string;
   versionId: string;
+  /** Versienummer, om change sets van eerdere versies aan te bieden (V4b) */
+  versionNumber: number;
 }
 
-const refs = new WeakMap<File, BimpeilModelRef>();
+// Op globalThis, zodat hot reload van deze module (lokaal) de herkomst van open modellen niet wist
+const holder = globalThis as typeof globalThis & { __bimpeilModelRefs?: WeakMap<File, BimpeilModelRef> };
+const refs = (holder.__bimpeilModelRefs ??= new WeakMap<File, BimpeilModelRef>());
 
 export function markBimpeilFile(file: File, ref: BimpeilModelRef): void {
   refs.set(file, ref);
+}
+
+/** Het open model dat met dit bestand geladen is */
+export function modelForFile(file: File): FederatedModel | null {
+  const models = Array.from(useViewerStore.getState().models.values()) as FederatedModel[];
+  return models.find((m) => m.sourceFile === file) ?? null;
 }
 
 export function bimpeilRefOf(model: Pick<FederatedModel, 'sourceFile'>): BimpeilModelRef | null {
@@ -31,6 +41,8 @@ const isObject = (data: unknown): data is Record<string, unknown> => !!data && t
 /** Verwijzing uit een bericht van de webapp controleren */
 export function parseModelRef(data: unknown): BimpeilModelRef | null {
   if (!isObject(data)) return null;
-  const { projectId, fileId, versionId } = data;
-  return typeof projectId === 'string' && typeof fileId === 'string' && typeof versionId === 'string' ? { projectId, fileId, versionId } : null;
+  const { projectId, fileId, versionId, versionNumber } = data;
+  return typeof projectId === 'string' && typeof fileId === 'string' && typeof versionId === 'string' && typeof versionNumber === 'number'
+    ? { projectId, fileId, versionId, versionNumber }
+    : null;
 }

@@ -24,7 +24,8 @@ import { showLoadError } from '@/lib/analytics';
 import { useViewerStore } from '@/store';
 import { useTranslation } from '@/i18n';
 import { useBimpeilContext, type BimpeilProject } from './context';
-import { markBimpeilFile, parseModelRef, type BimpeilModelRef } from './origin';
+import { markBimpeilFile, modelForFile, parseModelRef, type BimpeilModelRef } from './origin';
+import { offerChangeSets } from './BimpeilChangeSetActions';
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 
@@ -57,6 +58,9 @@ export function useBimpeilAddModel(mode: 'add' | 'open' = 'add'): (url: string, 
         if (ref) markBimpeilFile(file, ref);
         if (mode === 'open') await loadFile(file, { kind: 'primary' });
         else await addModel(file);
+        // Change sets van het eigen taakteam bij dit bestand aanbieden (V4b)
+        const model = ref ? modelForFile(file) : null;
+        if (model) void offerChangeSets(model);
         return true;
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);

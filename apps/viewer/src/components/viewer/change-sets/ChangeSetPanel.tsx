@@ -25,6 +25,7 @@ import {
   activateChangeSet, createChangeSet, discardChangeSet, exportChangeSet, importChangeSet, renameChangeSet,
 } from '@/lib/change-sets/change-set-actions';
 import { ChangeSetContents } from './ChangeSetContents';
+import { BimpeilChangeSetOpen, BimpeilChangeSetSave } from '@/bimpeil/BimpeilChangeSetActions';
 
 export function ChangeSetPanel({ onClose }: { onClose?: () => void }) {
   const { t } = useTranslation();
@@ -73,6 +74,8 @@ export function ChangeSetPanel({ onClose }: { onClose?: () => void }) {
           <Upload className="h-3 w-3" aria-hidden="true" />{t('changeSets.import')}
         </Button>
         <input ref={fileInput} type="file" accept=".json,application/json" className="hidden" data-change-set-import onChange={(e) => void importFile(e)} />
+        {/* BIMpeil: change sets from BIMpeil (V4) */}
+        <BimpeilChangeSetOpen />
       </div>
       <p className="px-3 pt-2 text-2xs text-muted-foreground">
         {rows.length === 0 ? t('changeSets.empty') : activeId === null ? t('changeSets.noActive') : t('changeSets.panel.intro')}
@@ -152,6 +155,8 @@ function ChangeSetRow({ row, open, onToggle }: { row: ChangeSetSummary; open: bo
         <IconButton label={t('changeSets.row.export', { name })} className="h-6 w-6" onClick={exportFile}>
           <Download className="h-3 w-3" />
         </IconButton>
+        {/* BIMpeil: save this change set in BIMpeil (V4) */}
+        <BimpeilChangeSetSave changeSetId={id} name={name} />
         <IconButton label={t('changeSets.row.discard', { name })} className="h-6 w-6" onClick={() => void discard()}>
           <Trash2 className="h-3 w-3" />
         </IconButton>

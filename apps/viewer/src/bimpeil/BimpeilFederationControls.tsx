@@ -32,7 +32,8 @@ import {
 } from '@/lib/federation/federationSetupFile';
 import { ModelTagsCommand } from '@/components/viewer/ModelTagsCommand';
 import { useBimpeilContext, type BimpeilProject } from './context';
-import { bimpeilRefOf, markBimpeilFile } from './origin';
+import { bimpeilRefOf, markBimpeilFile, modelForFile } from './origin';
+import { offerChangeSets } from './BimpeilChangeSetActions';
 
 const EVENT_SAVE = 'ifc-lite:save-federation-setup';
 const EVENT_OPEN = 'ifc-lite:open-federation-setup';
@@ -263,7 +264,7 @@ export function BimpeilFederationControls() {
         if (!res.ok) throw new Error(`${res.status}`);
         const blob = await res.blob();
         const file = new File([blob], slot.name, { type: blob.type || 'application/x-step' });
-        markBimpeilFile(file, { projectId: project.id, fileId: s.fileId, versionId: v.id });
+        markBimpeilFile(file, { projectId: project.id, fileId: s.fileId, versionId: v.id, versionNumber: v.number });
         matches.push({ slot, slotIndex: i, file, confidence: v.id === s.saved?.id ? 'content' : 'name-size' });
       } catch {
         failed.push(s.fileName);
@@ -293,6 +294,12 @@ export function BimpeilFederationControls() {
     const message = `${detail.name}: ${parts.join('; ')}.`;
     if (result.restoredCount === detail.slots.length && !result.anchorMissing) toast.success(message);
     else toast.error(message);
+
+    // Change sets per geopend model aanbieden (V4b), één vraag tegelijk
+    for (const m of matches) {
+      const model = m.file ? modelForFile(m.file) : null;
+      if (model) await offerChangeSets(model);
+    }
   }
 
   const busy = progress !== null;
