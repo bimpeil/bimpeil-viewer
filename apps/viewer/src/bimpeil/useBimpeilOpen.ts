@@ -6,7 +6,8 @@
  * BIMpeil: modellen openen vanuit de webapp eromheen, zonder de viewer te herladen.
  *
  * De webapp (zelfde origin, iframe op /viewer/) stuurt:
- * - `{ type: 'bimpeil:open', url, name }` met een kortlopende ondertekende URL op /opslag/;
+ * - `{ type: 'bimpeil:open', url, name, ref }` met een kortlopende ondertekende URL op /opslag/ en het
+ *   bestand en de versie in BIMpeil (origin.ts);
  * - `{ type: 'bimpeil:context', project }` met het actieve project, voor het paneel BIMpeil bestanden.
  * Het model wordt toegevoegd naast wat al open staat, met dezelfde `addModel` als `?model=`.
  * De viewer meldt `bimpeil:ready` bij het starten en daarna `bimpeil:opened` of `bimpeil:open-failed`.
@@ -23,6 +24,7 @@ import { showLoadError } from '@/lib/analytics';
 import { useViewerStore } from '@/store';
 import { useTranslation } from '@/i18n';
 import { useBimpeilContext, type BimpeilProject } from './context';
+import { markBimpeilFile, parseModelRef, type BimpeilModelRef } from './origin';
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 
@@ -31,14 +33,14 @@ const isObject = (data: unknown): data is Record<string, unknown> => !!data && t
  * vervangt alles (zoals Openen met één bestand in IfcLite). Geeft true bij succes; een fout komt in
  * de foutkaart van de viewer (zonder Opnieuw: de ondertekende URL verloopt, opnieuw gaat via BIMpeil).
  */
-export function useBimpeilAddModel(mode: 'add' | 'open' = 'add'): (url: string, name: string) => Promise<boolean> {
+export function useBimpeilAddModel(mode: 'add' | 'open' = 'add'): (url: string, name: string, ref?: BimpeilModelRef | null) => Promise<boolean> {
   const { loadFile } = useIfcLoader();
   const { addModel } = useIfcFederation(loadFile);
   const { guard: guardWebGpu } = useWebGpuOpenGuard();
   const { t } = useTranslation();
 
   return useCallback(
-    async (url: string, name: string) => {
+    async (url: string, name: string, ref?: BimpeilModelRef | null) => {
       let source: URL;
       try {
         source = new URL(url, window.location.href);
@@ -52,6 +54,7 @@ export function useBimpeilAddModel(mode: 'add' | 'open' = 'add'): (url: string, 
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         const blob = await res.blob();
         const file = new File([blob], name, { type: blob.type || 'application/x-step' });
+        if (ref) markBimpeilFile(file, ref);
         if (mode === 'open') await loadFile(file, { kind: 'primary' });
         else await addModel(file);
         return true;
@@ -85,7 +88,7 @@ export function useBimpeilOpen(): void {
       }
       if (data.type !== 'bimpeil:open' || typeof data.url !== 'string') return;
       const name = typeof data.name === 'string' && data.name ? data.name : 'model.ifc';
-      void addFromUrl(data.url, name).then((ok) => reply(ok ? { type: 'bimpeil:opened', name } : { type: 'bimpeil:open-failed', name }));
+      void addFromUrl(data.url, name, parseModelRef(data.ref)).then((ok) => reply(ok ? { type: 'bimpeil:opened', name } : { type: 'bimpeil:open-failed', name }));
     };
 
     window.addEventListener('message', onMessage);

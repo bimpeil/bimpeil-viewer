@@ -88,7 +88,7 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
       setBusy(null);
       return;
     }
-    await (mode === 'open' ? openFromUrl : addFromUrl)(data.url, file.name);
+    await (mode === 'open' ? openFromUrl : addFromUrl)(data.url, file.name, { projectId: project.id, fileId: file.id, versionId: version.id });
     setBusy(null);
   }
 
