@@ -28,6 +28,9 @@ import type { NavigationPreset } from '@/lib/navigation/presets.js';
 import type { SelectedDirectrixSegment } from '@/lib/analytic/segment-selection.js';
 import { getInitialHierarchyMode, getInitialNavigationPreset, persistHierarchyMode, persistNavigationPreset } from './uiPreferences.js';
 
+/** BIMpeil: light or dark is set in BIMpeil for the whole site, not toggled in the viewer */
+const BIMPEIL_THEME_LOCKED = true;
+
 export type ThemeMode = 'light' | 'dark' | 'colorful';
 export type { GeometryReloadReason } from './geometryLoadSettings.js';
 
@@ -293,6 +296,8 @@ export const createUISlice: StateCreator<UISlice & UICrossSliceState, [], [], UI
   },
 
   toggleTheme: () => {
+    // BIMpeil: the theme follows the BIMpeil setting (bimpeil:theme, setTheme); shortcut and palette do nothing
+    if (BIMPEIL_THEME_LOCKED) return;
     // Normal toggle: dark ↔ light. If currently colorful, drop to dark.
     const current = get().theme;
     const newTheme = current === 'dark' ? 'light' : 'dark';
@@ -302,6 +307,7 @@ export const createUISlice: StateCreator<UISlice & UICrossSliceState, [], [], UI
   },
 
   toggleColorful: () => {
+    if (BIMPEIL_THEME_LOCKED) return;
     // Shift+click secret: toggle colorful on/off
     // Into colorful from any state. Out of colorful → light (the storm clears).
     const current = get().theme;

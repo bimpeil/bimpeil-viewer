@@ -296,7 +296,7 @@ export function MobileToolbar() {
           <DropdownMenuSeparator />
 
           {/* Theme */}
-          {menuItem('view:theme')}
+          {/* BIMpeil: no theme toggle; set in BIMpeil */}
         </DropdownMenuContent>
       </DropdownMenu>
       {exportDialog}

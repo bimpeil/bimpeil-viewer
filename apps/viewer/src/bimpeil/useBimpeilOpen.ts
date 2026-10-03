@@ -8,7 +8,8 @@
  * De webapp (zelfde origin, iframe op /viewer/) stuurt:
  * - `{ type: 'bimpeil:open', url, name, ref }` met een kortlopende ondertekende URL op /opslag/ en het
  *   bestand en de versie in BIMpeil (origin.ts);
- * - `{ type: 'bimpeil:context', project }` met het actieve project, voor het paneel BIMpeil bestanden.
+ * - `{ type: 'bimpeil:context', project }` met het actieve project, voor het paneel BIMpeil bestanden;
+ * - `{ type: 'bimpeil:theme', theme }` met licht of donker voor de hele site (T1).
  * Het model wordt toegevoegd naast wat al open staat, met dezelfde `addModel` als `?model=`.
  * De viewer meldt `bimpeil:ready` bij het starten en daarna `bimpeil:opened` of `bimpeil:open-failed`.
  *
@@ -85,6 +86,11 @@ export function useBimpeilOpen(): void {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !isObject(event.data)) return;
       const data = event.data;
+      // Licht of donker uit BIMpeil (T1), voor de hele site
+      if (data.type === 'bimpeil:theme') {
+        if (data.theme === 'light' || data.theme === 'dark') useViewerStore.getState().setTheme(data.theme);
+        return;
+      }
       if (data.type === 'bimpeil:context') {
         const project = isObject(data.project) && typeof data.project.id === 'string' ? (data.project as unknown as BimpeilProject) : null;
         setProject(project);

@@ -24,7 +24,6 @@ import { useViewerStore, type RibbonTabId } from '@/store';
 import { cn } from '@/lib/utils';
 import { useTranslation, type TranslationKey } from '@/i18n';
 import { TOUR_ANCHORS, tourAnchor } from '@/lib/tours/anchors';
-import { ThemeSwitch } from '../ThemeSwitch';
 import { SearchInline } from '../SearchInline';
 import { ExportChangesButton } from '../ExportChangesButton';
 import { ExtensionToolbarSlot } from '@/components/extensions/ExtensionToolbarSlot';
@@ -179,14 +178,7 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
             {t('ribbon.commands')}
             <kbd className="text-xs text-muted-foreground">{t('ribbon.commandsShortcut')}</kbd>
           </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
-                <ThemeSwitch />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>{t('ribbon.themeTooltip')}</TooltipContent>
-          </Tooltip>
+          {/* BIMpeil: no theme switch; light or dark is set for the whole site in BIMpeil (bimpeil:theme) */}
 
           <Tooltip>
             <TooltipTrigger asChild>
