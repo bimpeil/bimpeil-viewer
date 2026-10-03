@@ -5,19 +5,24 @@
 /**
  * BIMpeil: paneel "BIMpeil bestanden". Toont de modellen van het actieve BIMpeil project en voegt
  * ze toe naast wat al open staat, of opent ze in plaats daarvan. Openen en Model toevoegen op de
- * ribbon openen dit paneel (localFiles.ts); een lokaal bestand openen kan onderaan. De lijst komt van de BIMpeil API op dezelfde origin, met de
- * sessiecookie: rechten en de WIP regel gelden daar. Openen gaat via `?doel=viewer`, zodat het
- * audit log "bestand geopend" toont.
+ * ribbon openen dit paneel (localFiles.ts); een lokaal bestand openen kan onderaan. De lijst komt
+ * van de BIMpeil API op dezelfde origin, met de sessiecookie: rechten en de WIP regel gelden daar.
+ * Openen gaat via `?doel=viewer`, zodat het audit log "bestand geopend" toont.
+ * Uploaden (V2): open modellen die niet uit BIMpeil komen, of een bestand van schijf, via de webapp
+ * (upload.ts). Na het uploaden geldt een open model als BIMpeil model (federaties, change sets).
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderOpen, HardDrive, Plus, RefreshCw, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { CloudUpload, FolderOpen, HardDrive, Plus, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import { useViewerStore } from '@/store';
+import { toast } from '@/components/ui/toast';
+import { useViewerStore, type FederatedModel } from '@/store';
 import { useBimpeilContext } from './context';
 import { useBimpeilAddModel } from './useBimpeilOpen';
 import { requestLocalFiles } from './localFiles';
+import { bimpeilRefOf, markBimpeilFile } from './origin';
+import { uploadToBimpeil, type ViewerUpload } from './upload';
 
 interface FileVersion {
   id: string;
@@ -51,11 +56,28 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
   const models = useViewerStore((s) => s.models);
   const loading = useViewerStore((s) => s.loading);
   const hasModels = models.size > 0;
-  const openNames = useMemo(() => new Set([...models.values()].map((m) => m.name)), [models]);
+  // Herkomst per open model; `refsChanged` ververst na een upload (de herkomst staat buiten de store)
+  const [refsChanged, setRefsChanged] = useState(0);
+  const openModels = useMemo(() => [...models.values()] as FederatedModel[], [models]);
+  const openFileIds = useMemo(
+    () => new Set(openModels.map((m) => bimpeilRefOf(m)?.fileId).filter(Boolean)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openModels, refsChanged],
+  );
+  const localModels = useMemo(
+    () => openModels.filter((m) => m.sourceFile && !bimpeilRefOf(m)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openModels, refsChanged],
+  );
+  const [canUpload, setCanUpload] = useState(false);
+  const [upload, setUpload] = useState<{ name: string; text: string; handle: ViewerUpload } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<ProjectFile[] | null>(null);
   const [viewerMax, setViewerMax] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Alle namen in het project (ook geen modellen): dezelfde naam uploaden is een nieuwe versie
+  const [allNames, setAllNames] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     if (!project) return;
@@ -63,11 +85,13 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
     fetch(`/api/projects/${encodeURIComponent(project.id)}/files`)
       .then(async (r) => {
         if (!r.ok) throw new Error(r.status === 404 ? 'Project niet gevonden.' : 'Bestanden ophalen is mislukt.');
-        return r.json() as Promise<{ files: ProjectFile[]; viewerMaxBytes: number }>;
+        return r.json() as Promise<{ files: ProjectFile[]; viewerMaxBytes: number; canUpload: boolean }>;
       })
       .then((d) => {
+        setAllNames(new Set(d.files.map((f) => f.name.toLowerCase())));
         setFiles(d.files.filter((f) => isModel(f.name)));
         setViewerMax(d.viewerMaxBytes);
+        setCanUpload(d.canUpload);
       })
       .catch((err: Error) => setError(err.message));
   }, [project]);
@@ -90,6 +114,33 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
     }
     await (mode === 'open' ? openFromUrl : addFromUrl)(data.url, file.name, { projectId: project.id, fileId: file.id, versionId: version.id, versionNumber: version.number });
     setBusy(null);
+  }
+
+  /** Bestanden een voor een uploaden; `model` krijgt daarna de herkomst in BIMpeil */
+  async function uploadFiles(items: { file: File; model?: FederatedModel }[]) {
+    if (!project) return;
+    for (const { file, model } of items) {
+      const handle = uploadToBimpeil(project.id, file, (phase, fraction) =>
+        setUpload((u) => u && { ...u, text: phase === 'hash' ? `controleren ${Math.round(fraction * 100)}%` : `${Math.round(fraction * 100)}%` }),
+      );
+      setUpload({ name: file.name, text: 'starten…', handle });
+      try {
+        const { ref, newVersion } = await handle.done;
+        if (model?.sourceFile) markBimpeilFile(model.sourceFile, ref);
+        toast.success(`${file.name} staat in BIMpeil als ${newVersion ? `versie ${ref.versionNumber}` : 'nieuw bestand'} (WIP, S0).`);
+      } catch (err) {
+        toast.error(`${file.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    setUpload(null);
+    setRefsChanged((n) => n + 1);
+    load();
+  }
+
+  function pickFiles(event: ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (picked.length > 0) void uploadFiles(picked.map((file) => ({ file })));
   }
 
   return (
@@ -119,7 +170,7 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
           {files.map((f) => {
             const v = f.versions[0];
             const tooBig = viewerMax > 0 && v.size > viewerMax;
-            const isOpen = openNames.has(f.name);
+            const isOpen = openFileIds.has(f.id);
             return (
               <li key={f.id} className="flex items-center gap-2 px-3 py-2">
                 <div className="min-w-0 flex-1">
@@ -158,6 +209,40 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
         </ol>
       )}
       {!(files && files.length > 0) && <div className="min-h-0 flex-1" />}
+      {project && canUpload && (
+        <div className="border-t px-3 py-2">
+          <div className="mb-1 text-xs font-medium">Uploaden naar BIMpeil</div>
+          {localModels.map((m) => {
+            const exists = allNames.has(m.sourceFile!.name.toLowerCase());
+            return (
+              <div key={m.id} className="flex items-center gap-2 py-1">
+                <span className="min-w-0 flex-1 truncate text-sm" title={m.name}>{m.name}</span>
+                <Button type="button" size="sm" variant="outline" disabled={upload !== null}
+                  title={exists ? 'Er is al een bestand met deze naam: dit wordt een nieuwe versie' : 'Origineel bestand, zonder wijzigingen uit de viewer'}
+                  onClick={() => void uploadFiles([{ file: m.sourceFile!, model: m }])}>
+                  <CloudUpload className="h-3 w-3" aria-hidden="true" />
+                  {exists ? 'Nieuwe versie' : 'Uploaden'}
+                </Button>
+              </div>
+            );
+          })}
+          {upload ? (
+            <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate">{upload.name}: {upload.text}</span>
+              <Button type="button" size="sm" variant="ghost" onClick={() => upload.handle.cancel()}>Annuleren</Button>
+            </div>
+          ) : (
+            <Button type="button" size="sm" variant="ghost" onClick={() => fileInput.current?.click()}>
+              <CloudUpload className="h-3 w-3" aria-hidden="true" />
+              Bestand van schijf uploaden
+            </Button>
+          )}
+          <input ref={fileInput} type="file" multiple className="hidden" onChange={pickFiles} />
+          <p className="mt-1 text-2xs text-muted-foreground">
+            Komt in BIMpeil als WIP met S0. Wijzigingen uit de viewer gaan niet mee; die bewaar je als change set.
+          </p>
+        </div>
+      )}
       <div className="border-t px-3 py-2">
         <div className="flex flex-wrap gap-1">
           <Button type="button" size="sm" variant="ghost" disabled={loading} onClick={() => requestLocalFiles('open')}>
@@ -172,7 +257,7 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
           )}
         </div>
         <p className="mt-1 text-2xs text-muted-foreground">
-          Een lokaal bestand wordt niet in BIMpeil opgeslagen. Uploaden en statussen regel je in BIMpeil, bij Bestanden.
+          Een lokaal geopend bestand staat niet in BIMpeil, tot je het uploadt. Statussen regel je in BIMpeil, bij Bestanden.
         </p>
       </div>
     </div>
