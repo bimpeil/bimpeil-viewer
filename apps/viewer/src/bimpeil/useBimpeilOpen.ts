@@ -9,7 +9,8 @@
  * - `{ type: 'bimpeil:open', url, name, ref }` met een kortlopende ondertekende URL op /opslag/ en het
  *   bestand en de versie in BIMpeil (origin.ts);
  * - `{ type: 'bimpeil:context', project }` met het actieve project, voor het paneel BIMpeil bestanden;
- * - `{ type: 'bimpeil:theme', theme }` met licht of donker voor de hele site (T1).
+ * - `{ type: 'bimpeil:theme', theme }` met licht of donker voor de hele site (T1);
+ * - `{ type: 'bimpeil:compare', base, head }` om twee versies te vergelijken (V5d, compare.ts).
  * Het model wordt toegevoegd naast wat al open staat, met dezelfde `addModel` als `?model=`.
  * De viewer meldt `bimpeil:ready` bij het starten en daarna `bimpeil:opened` of `bimpeil:open-failed`.
  *
@@ -27,6 +28,7 @@ import { useTranslation } from '@/i18n';
 import { useBimpeilContext, type BimpeilProject } from './context';
 import { markBimpeilFile, modelForFile, parseModelRef, type BimpeilModelRef } from './origin';
 import { offerChangeSets } from './BimpeilChangeSetActions';
+import { modelForVersion, selectComparison } from './compare';
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 
@@ -35,14 +37,16 @@ const isObject = (data: unknown): data is Record<string, unknown> => !!data && t
  * vervangt alles (zoals Openen met één bestand in IfcLite). Geeft true bij succes; een fout komt in
  * de foutkaart van de viewer (zonder Opnieuw: de ondertekende URL verloopt, opnieuw gaat via BIMpeil).
  */
-export function useBimpeilAddModel(mode: 'add' | 'open' = 'add'): (url: string, name: string, ref?: BimpeilModelRef | null) => Promise<boolean> {
+export function useBimpeilAddModel(
+  mode: 'add' | 'open' = 'add',
+): (url: string, name: string, ref?: BimpeilModelRef | null, options?: { offerChangeSets?: boolean }) => Promise<boolean> {
   const { loadFile } = useIfcLoader();
   const { addModel } = useIfcFederation(loadFile);
   const { guard: guardWebGpu } = useWebGpuOpenGuard();
   const { t } = useTranslation();
 
   return useCallback(
-    async (url: string, name: string, ref?: BimpeilModelRef | null) => {
+    async (url: string, name: string, ref?: BimpeilModelRef | null, options?: { offerChangeSets?: boolean }) => {
       let source: URL;
       try {
         source = new URL(url, window.location.href);
@@ -59,8 +63,8 @@ export function useBimpeilAddModel(mode: 'add' | 'open' = 'add'): (url: string, 
         if (ref) markBimpeilFile(file, ref);
         if (mode === 'open') await loadFile(file, { kind: 'primary' });
         else await addModel(file);
-        // Change sets van het eigen taakteam bij dit bestand aanbieden (V4b)
-        const model = ref ? modelForFile(file) : null;
+        // Change sets van het eigen taakteam bij dit bestand aanbieden (V4b); niet bij vergelijken (V5d)
+        const model = ref && options?.offerChangeSets !== false ? modelForFile(file) : null;
         if (model) void offerChangeSets(model);
         return true;
       } catch (err) {
@@ -94,6 +98,26 @@ export function useBimpeilOpen(): void {
       if (data.type === 'bimpeil:context') {
         const project = isObject(data.project) && typeof data.project.id === 'string' ? (data.project as unknown as BimpeilProject) : null;
         setProject(project);
+        return;
+      }
+      // Twee versies vergelijken (V5d): eerst laden wat nog niet open staat, een voor een
+      if (data.type === 'bimpeil:compare') {
+        const parse = (x: unknown) => {
+          if (!isObject(x) || typeof x.url !== 'string') return null;
+          const ref = parseModelRef(x.ref);
+          return ref ? { url: x.url, name: typeof x.name === 'string' && x.name ? x.name : 'model.ifc', ref } : null;
+        };
+        const base = parse(data.base);
+        const head = parse(data.head);
+        if (!base || !head) return;
+        const ensure = async (m: NonNullable<typeof base>) =>
+          modelForVersion(m.ref.versionId) ?? ((await addFromUrl(m.url, m.name, m.ref, { offerChangeSets: false })) ? modelForVersion(m.ref.versionId) : null);
+        void (async () => {
+          const a = await ensure(base);
+          const b = a ? await ensure(head) : null;
+          if (a && b) selectComparison(a.id, b.id);
+          reply(a && b ? { type: 'bimpeil:opened', name: head.name } : { type: 'bimpeil:open-failed', name: head.name });
+        })();
         return;
       }
       if (data.type !== 'bimpeil:open' || typeof data.url !== 'string') return;
