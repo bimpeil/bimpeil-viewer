@@ -6,12 +6,12 @@
  * BIMpeil: modellen openen vanuit de webapp eromheen, zonder de viewer te herladen.
  *
  * De webapp (zelfde origin, iframe op /viewer/) stuurt:
- * - `{ type: 'bimpeil:open', url, name, ref }` met een kortlopende ondertekende URL op /opslag/ en het
- *   bestand en de versie in BIMpeil (origin.ts);
+ * - `{ type: 'bimpeil:open', url, name, ref, mode }` met een kortlopende ondertekende URL op /opslag/ en het
+ *   bestand en de versie in BIMpeil (origin.ts); `mode` 'open' vervangt wat open staat, 'add' (standaard) voegt toe;
  * - `{ type: 'bimpeil:context', project }` met het actieve project, voor het paneel BIMpeil bestanden;
  * - `{ type: 'bimpeil:theme', theme }` met licht of donker voor de hele site (T1);
  * - `{ type: 'bimpeil:compare', base, head }` om twee versies te vergelijken (V5d, compare.ts).
- * Het model wordt toegevoegd naast wat al open staat, met dezelfde `addModel` als `?model=`.
+ * Toevoegen gaat met dezelfde `addModel` als `?model=`, openen met `loadFile` zoals Openen in IfcLite.
  * De viewer meldt `bimpeil:ready` bij het starten en daarna `bimpeil:opened` of `bimpeil:open-failed`.
  *
  * VEILIGHEID: alleen berichten van dezelfde origin, en alleen URL's op dezelfde origin, net als
@@ -84,6 +84,7 @@ export function useBimpeilAddModel(
 
 export function useBimpeilOpen(): void {
   const addFromUrl = useBimpeilAddModel();
+  const openFromUrl = useBimpeilAddModel('open');
   const setProject = useBimpeilContext((s) => s.setProject);
 
   useEffect(() => {
@@ -126,11 +127,13 @@ export function useBimpeilOpen(): void {
       }
       if (data.type !== 'bimpeil:open' || typeof data.url !== 'string') return;
       const name = typeof data.name === 'string' && data.name ? data.name : 'model.ifc';
-      void addFromUrl(data.url, name, parseModelRef(data.ref)).then((ok) => reply(ok ? { type: 'bimpeil:opened', name } : { type: 'bimpeil:open-failed', name }));
+      // Openen vervangt wat open staat, Toevoegen zet het ernaast; zonder mode (oudere webapp) toevoegen
+      const load = data.mode === 'open' ? openFromUrl : addFromUrl;
+      void load(data.url, name, parseModelRef(data.ref)).then((ok) => reply(ok ? { type: 'bimpeil:opened', name } : { type: 'bimpeil:open-failed', name }));
     };
 
     window.addEventListener('message', onMessage);
     reply({ type: 'bimpeil:ready' });
     return () => window.removeEventListener('message', onMessage);
-  }, [addFromUrl, setProject]);
+  }, [addFromUrl, openFromUrl, setProject]);
 }
