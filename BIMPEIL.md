@@ -2,6 +2,8 @@
 
 Deze repo is een privé fork van [LTplus-AG/ifc-lite](https://github.com/LTplus-AG/ifc-lite) (MPL 2.0). De viewer (`apps/viewer`) draait in [BIMpeil](https://github.com/bimpeil/BIMpeil) op `/viewer/`. BIMpeil haalt deze repo op in `apps/viewer/.ifclite` en bouwt hem met `pnpm viewer:build`, op de commit die in `apps/viewer/ifclite.json` staat.
 
+De volledige werkwijze (dagelijks werken, weigeringen van `viewer:build`, upgraden, problemen) staat in BIMpeil: [`docs/viewer.md`](https://github.com/bimpeil/BIMpeil/blob/main/docs/viewer.md). Dit bestand is de korte versie voor wie in de fork kijkt; bij verschil geldt `docs/viewer.md`.
+
 ## Branches en remotes
 
 | | |
