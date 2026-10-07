@@ -22,6 +22,7 @@ import { useCallback, useEffect } from 'react';
 import { useIfcLoader } from '@/hooks/useIfcLoader.js';
 import { useIfcFederation } from '@/hooks/useIfcFederation.js';
 import { useWebGpuOpenGuard } from '@/hooks/useWebGpuOpenGuard';
+import { getWebGPUStatus, retryWebGPU } from '@/hooks/useWebGPU';
 import { showLoadError } from '@/lib/analytics';
 import { useViewerStore } from '@/store';
 import { useTranslation } from '@/i18n';
@@ -54,7 +55,10 @@ export function useBimpeilAddModel(
         return false;
       }
       if (source.origin !== window.location.origin) return false;
-      if (!guardWebGpu(() => {})) return false;
+      // Bij een koude start komt het bericht van BIMpeil vaak binnen terwijl IfcLite nog naar een
+      // GPU adapter vraagt; dan wachten op die controle (geen tweede) in plaats van "still being checked"
+      if (getWebGPUStatus().checking) await retryWebGPU();
+      if (!guardWebGpu()) return false;
       try {
         const res = await fetch(source.href);
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
