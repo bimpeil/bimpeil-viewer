@@ -58,6 +58,8 @@ Gewijzigde bestanden van ifc-lite (onder `apps/viewer/src/`):
 - `lib/panels/registry.ts`, `lib/panels/renderPanelBody.tsx`
 - `store/index.ts`, `store/slices/uiSlice.ts`, `store/slices/uiPreferences.ts`, `store/store-sync.ts`
 
+Nieuwe pagina naast de viewer: `apps/viewer/bimpeil-checker.html` met `src/bimpeil/checker/` (controle met een IDS zonder viewer, voor de pagina Controles van BIMpeil; als invoer toegevoegd in de Vite configuratie van BIMpeil, niet in die van ifc-lite).
+
 Aanpassingen in bestanden van ifc-lite zijn sinds 7 oktober 2026 gemarkeerd met `BIMpeil:`. Overzicht met `git diff --name-status main bimpeil`.
 
 ## Licentie
