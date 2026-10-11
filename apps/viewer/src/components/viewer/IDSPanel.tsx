@@ -26,6 +26,8 @@ import { IDSCorrectionDialog, getCorrectableRequirements } from './IDSCorrection
 import { useTranslation } from '@/i18n';
 import { IDSPanelResults } from './IDSPanelResults';
 import { IDSPanelStates, idsProgressState } from './IDSPanelStates';
+// BIMpeil: een IDS alleen uit BIMpeil
+import { BIMPEIL_IDS_ONLY } from '@/bimpeil/BimpeilIdsSource';
 import { AnalysisPanel, AnalysisStaleRegion } from './analysis/AnalysisPanel';
 
 // ============================================================================
@@ -194,9 +196,12 @@ export function IDSPanel({ onClose, embedded = false }: IDSPanelProps) {
       actions={document && (
         <>
           <input ref={fileInputRef} type="file" accept=".ids,.xml" className="hidden" onChange={handleFileSelect} />
-          <IconButton label={t('idsPanel.loadNew')} className="h-7 w-7" onClick={() => { void handleLoadIdsClick(); }}>
-            <Upload className="h-4 w-4" />
-          </IconButton>
+          {/* BIMpeil: geen IDS van de eigen computer */}
+          {!BIMPEIL_IDS_ONLY && (
+            <IconButton label={t('idsPanel.loadNew')} className="h-7 w-7" onClick={() => { void handleLoadIdsClick(); }}>
+              <Upload className="h-4 w-4" />
+            </IconButton>
+          )}
           {/* BIMpeil: terug naar de keuze met IDS uit BIMpeil (de lege stand van het paneel) */}
           <IconButton label="Andere IDS uit BIMpeil" className="h-7 w-7" onClick={() => { clearIDS(); clearValidation(); }}>
             <FolderOpen className="h-4 w-4" />

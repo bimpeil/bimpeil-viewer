@@ -46,6 +46,12 @@ export interface IdsFile {
   status: string;
 }
 
+/**
+ * Een IDS komt in de viewer alleen uit BIMpeil (besluit, 11 oktober 2026): de knoppen van IfcLite om een IDS van
+ * de eigen computer te laden (IDS validation, het demovoorbeeld, Import IDS as rules) staan uit met deze vlag.
+ */
+export const BIMPEIL_IDS_ONLY = true;
+
 const STATUS: Record<string, string> = { WIP: 'WIP', Shared: 'Gedeeld', Published: 'Gepubliceerd', Archived: 'Gearchiveerd' };
 
 /** De IDS bestanden van het project: naam op .ids, de nieuwste versie die de API teruggeeft, op naam */

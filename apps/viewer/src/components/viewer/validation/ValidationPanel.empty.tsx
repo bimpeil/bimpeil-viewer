@@ -22,6 +22,8 @@ import { tourAnchor, TOUR_ANCHORS } from '@/lib/tours/anchors';
 import { useTranslation } from '@/i18n';
 import type { RecentRuleSet } from '@/lib/validation/recent-rule-sets';
 import { ManualValidationEntry, type ManualValidationEntryProps } from './ManualValidationEntry';
+// BIMpeil: een IDS alleen uit BIMpeil, dus geen Import IDS as rules van de eigen computer
+import { BIMPEIL_IDS_ONLY } from '@/bimpeil/BimpeilIdsSource';
 
 interface EntryCardProps {
   icon: React.ReactNode;
@@ -104,10 +106,12 @@ export function InformationValidationEntry({
           className="hidden"
           onChange={(e) => { void handleFileSelect(e); }}
         />
-        <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => idsInputRef.current?.click()}>
-          <FileInput className="h-3.5 w-3.5" />
-          {t('validationPanel.entry.importIds')}
-        </Button>
+        {!BIMPEIL_IDS_ONLY && (
+          <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => idsInputRef.current?.click()}>
+            <FileInput className="h-3.5 w-3.5" />
+            {t('validationPanel.entry.importIds')}
+          </Button>
+        )}
         <input
           ref={idsInputRef}
           type="file"

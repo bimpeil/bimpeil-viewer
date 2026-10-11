@@ -15,7 +15,7 @@ import { AnalysisEmptyState } from './analysis/AnalysisEmptyState';
 import type { AnalysisProgressState } from './analysis/AnalysisProgress';
 import { AnalysisRunButton } from './analysis/AnalysisRunActions';
 // BIMpeil: IDS uit het project en de bibliotheek (src/bimpeil/BimpeilIdsSource.tsx)
-import { BimpeilIdsSource } from '@/bimpeil/BimpeilIdsSource';
+import { BIMPEIL_IDS_ONLY, BimpeilIdsSource } from '@/bimpeil/BimpeilIdsSource';
 
 /** IDS validation progress as the shared analysis progress state (#5834). */
 export function idsProgressState(
@@ -60,14 +60,15 @@ export function IDSPanelStates({ ids, fileInputRef, onFileSelect, onLoadClick }:
           className="flex-1"
           icon={<FileText className="size-8" />}
           title={t(hasAuditIssues ? 'idsPanel.documentHasErrors' : 'idsPanel.noIdsLoaded')}
-          description={t(hasAuditIssues ? 'idsPanel.fixAndRetry' : 'idsPanel.loadDescription')}
-          action={(
+          // BIMpeil: alleen een IDS uit BIMpeil, dus geen knop voor een bestand van de eigen computer en geen demovoorbeeld
+          description={BIMPEIL_IDS_ONLY ? 'Kies hieronder een IDS uit BIMpeil.' : t(hasAuditIssues ? 'idsPanel.fixAndRetry' : 'idsPanel.loadDescription')}
+          action={BIMPEIL_IDS_ONLY ? undefined : (
             <Button onClick={onLoadClick} {...tourAnchor(TOUR_ANCHORS.idsLoad)}>
               <Upload className="h-4 w-4 mr-2" />
               {t(hasAuditIssues ? 'idsPanel.loadDifferentFile' : 'idsPanel.loadFile')}
             </Button>
           )}
-          loadDemo={loadDemoIdsWithProject}
+          loadDemo={BIMPEIL_IDS_ONLY ? undefined : loadDemoIdsWithProject}
         />
         {/* BIMpeil: IDS uit BIMpeil */}
         <BimpeilIdsSource />

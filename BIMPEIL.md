@@ -50,7 +50,7 @@ Gewijzigde bestanden van ifc-lite (onder `apps/viewer/src/`):
 - `components/viewer/dock/FloatingPanel.tsx`
 - `components/viewer/ribbon/RibbonToolbar.tsx`, `ribbon/tabs/FileTab.tsx`
 - `components/viewer/toolbar/useFileCommands.tsx`
-- `components/viewer/IDSPanel.tsx`, `IDSPanelStates.tsx` (IDS uit BIMpeil, `src/bimpeil/BimpeilIdsSource.tsx`)
+- `components/viewer/IDSPanel.tsx`, `IDSPanelStates.tsx`, `validation/ValidationPanel.empty.tsx` (IDS alleen uit BIMpeil, `src/bimpeil/BimpeilIdsSource.tsx` met de vlag `BIMPEIL_IDS_ONLY`)
 - `components/viewer/HierarchyPanel.tsx` en in `components/viewer/hierarchy/`: `types.ts`, `revealGlobalId.ts`, `useHierarchyTree.ts`, `rowSelection.ts`, `useHierarchyTreeKeyboard.ts`, `HierarchyNode.tsx` (indeling per hoofdstuk van de BIM basis ILS, de boom zelf in `src/bimpeil/ilsTree.ts`)
 - `hooks/useKeyboardShortcuts.ts`, `hooks/usePanelControls.ts`
 - `i18n/en.ts`
