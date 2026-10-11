@@ -38,7 +38,7 @@ export function hierarchyRowSelection(
     return rows;
   }
 
-  if (node.type === 'material-group' || node.type === 'group') {
+  if (node.type === 'material-group' || node.type === 'group' || node.type === 'ils-group') { // BIMpeil: ils-group
     const members = node.type === 'group' ? node.memberGlobalIds ?? node.globalIds : node.globalIds;
     members.forEach((globalId) => push(globalId, resolveGlobalId(globalId)));
     return rows;

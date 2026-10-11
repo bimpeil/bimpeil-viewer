@@ -88,6 +88,7 @@ export function useHierarchyTreeKeyboard({
     : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass')
     : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial')
     : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup')
+    : groupingMode === 'ils' ? t('bimpeil.hierarchy.ils.title') // BIMpeil
     : t('hierarchy.panel.sectionTitle.byType');
 
   return {

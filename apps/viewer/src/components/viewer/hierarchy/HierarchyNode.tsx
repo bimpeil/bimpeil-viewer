@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { useState } from 'react';
-import { ChevronRight, Layers, Eye, EyeOff, FileBox } from 'lucide-react';
+import { ChevronRight, Layers, Eye, EyeOff, FileBox, ClipboardCheck } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n';
@@ -28,6 +28,7 @@ function getIfcIconCodepoint(ifcType: string | undefined): string {
 const NODE_TYPE_ICONS: Record<string, React.ElementType> = {
   'unified-storey': Layers,
   'model-header': FileBox,
+  'ils-group': ClipboardCheck, // BIMpeil
 };
 
 /** Indent per tree level. 12 px (was 16) still reads as a hierarchy and gives
@@ -118,7 +119,8 @@ export function HierarchyNode({
     node.type === 'type-group' ||
     node.type === 'material-group' ||
     node.type === 'group' ||
-    node.type === 'other-group'
+    node.type === 'other-group' ||
+    node.type === 'ils-group' // BIMpeil
       ? 'font-medium text-zinc-900 dark:text-zinc-100'
       : 'text-zinc-700 dark:text-zinc-300';
   const strikeWhenHidden = nodeHidden && 'line-through decoration-zinc-400 dark:decoration-zinc-600';

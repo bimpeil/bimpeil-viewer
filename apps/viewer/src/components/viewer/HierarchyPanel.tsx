@@ -5,7 +5,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from '@/i18n';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, Building2, Layers, LayoutTemplate, FileBox, GripHorizontal, Palette, Network } from 'lucide-react';
+import { Search, Building2, Layers, LayoutTemplate, FileBox, GripHorizontal, Palette, Network, ClipboardCheck } from 'lucide-react';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -408,7 +408,7 @@ export function HierarchyPanel() {
       }
     } else if (node.type === 'IfcBuildingStorey' || node.type === 'IfcSpace' || node.type === 'unified-storey' ||
                node.type === 'type-group' || node.type === 'ifc-type' || node.type === 'material-group' ||
-               node.type === 'group' ||
+               node.type === 'group' || node.type === 'ils-group' || // BIMpeil: ils-group
                (node.type === 'model-header' && node.id.startsWith('contrib-'))) {
       const elements = getNodeElements(node);
       nodeHidden = elements.length > 0 && elements.every(id => hiddenEntities.has(id));
@@ -552,6 +552,17 @@ export function HierarchyPanel() {
       >
         <Network className="h-3 w-3 shrink-0 panel-compact-icon" />
         <span className="panel-compact-text">{t('hierarchy.panel.grouping.groups')}</span>
+      </Button>
+      {/* BIMpeil: indeling per hoofdstuk van de BIM basis ILS (src/bimpeil/ilsTree.ts) */}
+      <Button
+        variant={groupingMode === 'ils' ? 'default' : 'outline'}
+        size="sm"
+        className="h-6 text-2xs flex-1 min-w-0 rounded-none uppercase tracking-wider"
+        onClick={() => setGroupingMode('ils')}
+        title={t('bimpeil.hierarchy.ils.tooltip')}
+      >
+        <ClipboardCheck className="h-3 w-3 shrink-0 panel-compact-icon" />
+        <span className="panel-compact-text">{t('bimpeil.hierarchy.ils.tab')}</span>
       </Button>
     </div>
   );
@@ -700,8 +711,8 @@ export function HierarchyPanel() {
 
       {/* Section Header */}
       <SectionHeader
-        icon={groupingMode === 'spatial' ? Building2 : groupingMode === 'type' ? Layers : groupingMode === 'material' ? Palette : groupingMode === 'groups' ? Network : FileBox}
-        title={groupingMode === 'spatial' ? t('hierarchy.panel.sectionTitle.spatial') : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass') : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial') : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup') : t('hierarchy.panel.sectionTitle.byType')}
+        icon={groupingMode === 'spatial' ? Building2 : groupingMode === 'type' ? Layers : groupingMode === 'material' ? Palette : groupingMode === 'groups' ? Network : groupingMode === 'ils' ? ClipboardCheck : FileBox}
+        title={groupingMode === 'spatial' ? t('hierarchy.panel.sectionTitle.spatial') : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass') : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial') : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup') : groupingMode === 'ils' ? t('bimpeil.hierarchy.ils.title') : t('hierarchy.panel.sectionTitle.byType')}
         count={filteredNodes.length}
       />
 

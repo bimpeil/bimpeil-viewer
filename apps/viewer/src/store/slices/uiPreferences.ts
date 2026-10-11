@@ -12,7 +12,8 @@ export function getInitialHierarchyMode(): HierarchyMode {
   if (typeof window === 'undefined') return 'spatial';
   try {
     const stored = localStorage.getItem(HIERARCHY_MODE_STORAGE_KEY);
-    if (stored === 'spatial' || stored === 'type' || stored === 'ifc-type' || stored === 'material' || stored === 'groups') {
+    // BIMpeil: ook 'ils'
+    if (stored === 'spatial' || stored === 'type' || stored === 'ifc-type' || stored === 'material' || stored === 'groups' || stored === 'ils') {
       return stored;
     }
   } catch (err) {

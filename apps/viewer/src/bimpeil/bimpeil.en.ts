@@ -5,4 +5,8 @@
 /** BIMpeil: titels van onze eigen panelen (Nederlands, zoals de rest van BIMpeil) */
 export const bimpeilEn = {
   'bimpeil.files.title': 'BIMpeil bestanden',
+  // Hierarchy per hoofdstuk van de BIM basis ILS (ilsTree.ts)
+  'bimpeil.hierarchy.ils.tab': 'ILS',
+  'bimpeil.hierarchy.ils.tooltip': 'Per hoofdstuk van de BIM basis ILS',
+  'bimpeil.hierarchy.ils.title': 'BIM basis ILS',
 } as const;

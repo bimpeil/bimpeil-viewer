@@ -34,7 +34,8 @@ const BIMPEIL_THEME_LOCKED = true;
 export type ThemeMode = 'light' | 'dark' | 'colorful';
 export type { GeometryReloadReason } from './geometryLoadSettings.js';
 
-export type HierarchyMode = 'spatial' | 'type' | 'ifc-type' | 'material' | 'groups';
+// BIMpeil: 'ils' deelt in per hoofdstuk van de BIM basis ILS (src/bimpeil/ilsTree.ts)
+export type HierarchyMode = 'spatial' | 'type' | 'ifc-type' | 'material' | 'groups' | 'ils';
 
 /**
  * One-shot target for "jump to a property and edit it" flows (issue #1107).

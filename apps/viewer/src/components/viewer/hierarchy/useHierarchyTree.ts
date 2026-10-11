@@ -239,15 +239,17 @@ export function useHierarchyTree({ models, ifcDataStore, isMultiModel, geometryR
   // this same complete tree; reveal uses it too. A chevron click only projects
   // visible rows and never calls the builder.
   // hiddenEntities intentionally NOT in deps - visibility computed lazily.
+  // BIMpeil: de indeling per BIM basis ILS berekent een hoofdstuk pas bij uitklappen, dus krijgt de echte uitklapstand
+  const ilsExpansion = groupingMode === 'ils' ? expandedNodes : null;
   const structuralTree = useMemo(
     (): TreeNode[] => groupingMode === 'material' && !materialReady ? [] : buildTreeForGrouping(
-      groupingMode, models, ifcDataStore, EXPAND_ALL, isMultiModel, unifiedStoreys, sortMode,
+      groupingMode, models, ifcDataStore, ilsExpansion ?? EXPAND_ALL, isMultiModel, unifiedStoreys, sortMode,
       geometricIds, classTreeIds, authoredProducts, groupFilter, geometryReadyModelIds,
       georefMutations, mutationViews, materialSourceStores,
     ),
     [groupingMode, models, ifcDataStore, isMultiModel, unifiedStoreys, sortMode,
       geometricIds, classTreeIds, authoredProducts, groupFilter, geometryReadyModelIds,
-      georefMutations, mutationViews, mutationVersion, materialSourceStores, materialReady],
+      georefMutations, mutationViews, mutationVersion, materialSourceStores, materialReady, ilsExpansion],
   );
   const treeIndex = useMemo(() => indexHierarchyTree(structuralTree), [structuralTree]);
   const getExpandedTreeForReveal = useCallback(() => structuralTree, [structuralTree]);
@@ -283,7 +285,7 @@ export function useHierarchyTree({ models, ifcDataStore, isMultiModel, geometryR
   // Get all elements for a node (handles type groups, ifc-type, unified storeys, single storeys, model contributions, and elements)
   const getNodeElements = useCallback((node: TreeNode): number[] => {
     if (node.type === 'type-group' || node.type === 'ifc-type' || node.type === 'material-group' ||
-        node.type === 'group' || node.type === 'group-member') {
+        node.type === 'group' || node.type === 'group-member' || node.type === 'ils-group') { // BIMpeil: ils-group
       // GlobalIds are pre-stored on the node during tree construction — O(1).
       // For 'group' rows these are the RESOLVED member geometry ids (#1622).
       return node.globalIds;

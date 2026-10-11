@@ -24,6 +24,7 @@ import {
   type GeorefMutationsByModel,
 } from './treeDataBuilder';
 import { findNodePath } from './findNodePath';
+import { buildIlsTree } from '@/bimpeil/ilsTree';
 
 const EXPAND_ALL: ExpansionLookup = { has: () => true };
 
@@ -66,6 +67,11 @@ export function buildTreeForGrouping(
   }
   if (groupingMode === 'material') {
     return buildMaterialTree(models, ifcDataStore, expansion, isMultiModel, geometricIds, geometryReadyModelIds, materialSourceStores);
+  }
+  // BIMpeil: per hoofdstuk van de BIM basis ILS; een hoofdstuk wordt pas bij uitklappen berekend, dus hier de echte
+  // uitklapstand (useHierarchyTree geeft die door in plaats van alles uitgeklapt)
+  if (groupingMode === 'ils') {
+    return buildIlsTree({ models, ifcDataStore, isMultiModel, geometricIds, geometryReadyModelIds, overlay: treeOverlay }, expansion);
   }
   if (groupingMode === 'groups') {
     return buildGroupTree(models, ifcDataStore, expansion, isMultiModel, geometricIds, groupFilter, treeOverlay);

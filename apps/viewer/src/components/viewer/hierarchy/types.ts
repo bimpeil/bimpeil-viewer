@@ -35,6 +35,7 @@ export type NodeType =
   | 'group-member'        // Member row under an expanded group (#1622)
   | 'model-tag-group'     // Model-tag group header in the Models section's "By tag" view (#4215)
   | 'other-group'         // "Other" bucket header for geometry-less physical elements (#4764)
+  | 'ils-group'           // BIMpeil: hoofdstuk of groep in de indeling per BIM basis ILS (src/bimpeil/ilsTree.ts)
   | 'element';            // Individual element
 
 export interface TreeNode {
