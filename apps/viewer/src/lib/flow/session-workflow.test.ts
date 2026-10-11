@@ -223,7 +223,8 @@ describe('session validation pipeline through native engines (#6612)', () => {
     (globalThis as { Worker?: unknown }).Worker = ControlledWorker;
     try {
       await assert.rejects(validateChecks(activeRun, 'workflow', modelSet(activeRun), [
-        { id: 'ids', enabled: true, source: { kind: 'embedded', value: xml, name: 'Wall names' } },
+        // BIMpeil: een IDS alleen uit BIMpeil (src/bimpeil/idsOnly.ts), dus met het voorvoegsel
+        { id: 'ids', enabled: true, source: { kind: 'embedded', value: xml, name: 'BIMpeil: Wall names' } },
       ], undefined), { name: 'AbortError' });
       assert.equal(workers, 2);
       const saved = loadValidationReports();

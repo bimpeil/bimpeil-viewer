@@ -28,3 +28,9 @@ test('sjablonen: vervallen weg, op naam', () => {
   ];
   assert.deepEqual(usableTemplates(list).map((t) => t.versionId), ['1', '2']);
 });
+
+test('Flow: een IDS alleen uit BIMpeil (de naam begint met het voorvoegsel)', async () => {
+  const { assertIdsFromBimpeil, BIMPEIL_IDS_PREFIX } = await import('./idsOnly');
+  assert.doesNotThrow(() => assertIdsFromBimpeil(`${BIMPEIL_IDS_PREFIX}BIM basis ILS (IFC4)`));
+  assert.throws(() => assertIdsFromBimpeil('eigen.ids'), /alleen uit BIMpeil/);
+});

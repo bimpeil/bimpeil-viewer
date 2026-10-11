@@ -27,7 +27,7 @@ import { useTranslation } from '@/i18n';
 import { IDSPanelResults } from './IDSPanelResults';
 import { IDSPanelStates, idsProgressState } from './IDSPanelStates';
 // BIMpeil: een IDS alleen uit BIMpeil
-import { BIMPEIL_IDS_ONLY } from '@/bimpeil/BimpeilIdsSource';
+import { BIMPEIL_IDS_ONLY } from '@/bimpeil/idsOnly';
 import { AnalysisPanel, AnalysisStaleRegion } from './analysis/AnalysisPanel';
 
 // ============================================================================

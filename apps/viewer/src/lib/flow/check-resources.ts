@@ -10,6 +10,8 @@ import type { ComparisonRecipe } from '@/lib/compare/comparison-recipe';
 import { isSavedComparison, type SavedComparison } from '@/lib/compare/savedComparisonSchema';
 import { computeFullSourceHash } from '@/utils/sourceContentHash';
 import type { WorkflowRun } from './run-session';
+// BIMpeil: een IDS alleen uit BIMpeil, ook in Flow (src/bimpeil/idsOnly.ts)
+import { assertIdsFromBimpeil } from '@/bimpeil/idsOnly';
 
 const MAX_RESOURCE_BYTES = 10 * 1024 * 1024;
 export type PreparedCheck = { job: CheckJob; name: string; fingerprint: string } & (
@@ -78,7 +80,10 @@ export async function prepareCheck(run: WorkflowRun, job: CheckJob, kind: 'valid
   run.check();
   if (!fingerprint) throw new Error('Web Crypto SHA-256 is required to identify workflow check resources');
   if (kind === 'comparison') return { job, name, fingerprint, kind: 'comparison', value: validateComparisonRecipe(value) };
-  if (typeof value === 'string') return { job, name, fingerprint, kind: 'ids', value: parseIDS(value) };
+  if (typeof value === 'string') {
+    assertIdsFromBimpeil(name);
+    return { job, name, fingerprint, kind: 'ids', value: parseIDS(value) };
+  }
   const parsed = parseRuleSetFile(value);
   if (!parsed.ok) throw new Error(`${name}: ${parsed.error}`);
   return { job, name, fingerprint, kind: 'rules', value: parsed.file };

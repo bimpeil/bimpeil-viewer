@@ -23,7 +23,7 @@ import { useTranslation } from '@/i18n';
 import type { RecentRuleSet } from '@/lib/validation/recent-rule-sets';
 import { ManualValidationEntry, type ManualValidationEntryProps } from './ManualValidationEntry';
 // BIMpeil: een IDS alleen uit BIMpeil, dus geen Import IDS as rules van de eigen computer
-import { BIMPEIL_IDS_ONLY } from '@/bimpeil/BimpeilIdsSource';
+import { BIMPEIL_IDS_ONLY } from '@/bimpeil/idsOnly';
 
 interface EntryCardProps {
   icon: React.ReactNode;

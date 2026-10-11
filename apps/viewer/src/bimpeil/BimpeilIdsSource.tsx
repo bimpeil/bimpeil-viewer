@@ -17,6 +17,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { loadIdsContent } from '@/hooks/ids/loadIdsContent';
 import { useViewerStore } from '@/store';
 import { useBimpeilContext } from './context';
+import { BIMPEIL_IDS_PREFIX } from './idsOnly';
 
 interface FileVersion {
   id: string;
@@ -46,11 +47,8 @@ export interface IdsFile {
   status: string;
 }
 
-/**
- * Een IDS komt in de viewer alleen uit BIMpeil (besluit, 11 oktober 2026): de knoppen van IfcLite om een IDS van
- * de eigen computer te laden (IDS validation, het demovoorbeeld, Import IDS as rules) staan uit met deze vlag.
- */
-export const BIMPEIL_IDS_ONLY = true;
+// Een IDS alleen uit BIMpeil: de vlag en de controle staan in idsOnly.ts (ook voor Flow)
+export { BIMPEIL_IDS_ONLY } from './idsOnly';
 
 const STATUS: Record<string, string> = { WIP: 'WIP', Shared: 'Gedeeld', Published: 'Gepubliceerd', Archived: 'Gearchiveerd' };
 
@@ -82,7 +80,11 @@ async function json<T>(path: string): Promise<T> {
   return d;
 }
 
-export function BimpeilIdsSource() {
+/**
+ * Zonder `onLoaded` laadt een klik de IDS in het paneel Validatie; met `onLoaded` (een check job in Flow) gaat de tekst
+ * met de naam (beginnend met BIMPEIL_IDS_PREFIX) naar de aanroeper.
+ */
+export function BimpeilIdsSource({ onLoaded, compact = false }: { onLoaded?: (xml: string, name: string) => void; compact?: boolean } = {}) {
   const project = useBimpeilContext((s) => s.project);
   const [files, setFiles] = useState<IdsFile[] | null>(null);
   const [templates, setTemplates] = useState<Template[] | null>(null);
@@ -110,7 +112,7 @@ export function BimpeilIdsSource() {
 
   useEffect(reload, [reload]);
 
-  async function load(key: string, path: string) {
+  async function load(key: string, path: string, name: string) {
     setBusy(key);
     setError(null);
     try {
@@ -119,7 +121,9 @@ export function BimpeilIdsSource() {
       if (new URL(url, location.href).origin !== location.origin) throw new Error('Onverwacht adres voor de IDS');
       const r = await fetch(url);
       if (!r.ok) throw new Error(`De IDS kon niet gelezen worden (${r.status})`);
-      loadIdsContent(useViewerStore, await r.text());
+      const xml = await r.text();
+      if (onLoaded) onLoaded(xml, `${BIMPEIL_IDS_PREFIX}${name}`);
+      else loadIdsContent(useViewerStore, xml);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -138,14 +142,14 @@ export function BimpeilIdsSource() {
         <div className="truncate text-sm" title={title}>{title}</div>
         {sub && <div className="truncate text-xs text-muted-foreground">{sub}</div>}
       </div>
-      <Button type="button" size="sm" variant="outline" disabled={busy !== null} onClick={() => void load(key, path)}>
-        {busy === key ? 'Bezig…' : 'Laden'}
+      <Button type="button" size="sm" variant="outline" disabled={busy !== null} onClick={() => void load(key, path, title)}>
+        {busy === key ? 'Bezig…' : onLoaded ? 'Kiezen' : 'Laden'}
       </Button>
     </li>
   );
 
   return (
-    <div className="border-t px-6 py-3">
+    <div className={compact ? 'py-1' : 'border-t px-6 py-3'}>
       <div className="mb-1 flex items-center justify-between">
         <span className="text-sm font-medium">IDS uit BIMpeil, {project.code}</span>
         <IconButton label="Opnieuw ophalen" className="h-7 w-7" onClick={reload}>

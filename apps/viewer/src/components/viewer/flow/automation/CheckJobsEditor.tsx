@@ -12,6 +12,9 @@ import { validateComparisonRecipe } from '@/lib/compare/comparison-recipe-io';
 import { collectRuleTagIds } from '@/lib/flow/rule-tag-bindings';
 import { TagBindingsEditor } from './TagBindingsEditor';
 import { ModelSelectorEditor } from './ModelSelectorEditor';
+// BIMpeil: een IDS in een check job alleen uit BIMpeil (src/bimpeil/idsOnly.ts)
+import { BimpeilIdsSource } from '@/bimpeil/BimpeilIdsSource';
+import { BIMPEIL_IDS_ONLY } from '@/bimpeil/idsOnly';
 
 function editableSelector(value: unknown): value is ModelSelector {
   if (!value || typeof value !== 'object') return false;
@@ -51,6 +54,8 @@ export function CheckJobsEditor({ value, onChange, slots, kind, scopeKey }: {
       const text = await file.text();
       if (!stillMountedInScope()) return;
       let parsed: unknown;
+      // BIMpeil: een .ids van de computer niet; die kies je met IDS uit BIMpeil
+      if (BIMPEIL_IDS_ONLY && file.name.toLowerCase().endsWith('.ids')) throw new Error('Een IDS komt alleen uit BIMpeil; kies hem met IDS uit BIMpeil.');
       if (kind === 'validation' && file.name.toLowerCase().endsWith('.ids')) { parseIDS(text); parsed = text; }
       else {
         parsed = JSON.parse(text);
@@ -79,11 +84,14 @@ export function CheckJobsEditor({ value, onChange, slots, kind, scopeKey }: {
         })}>
           <option value="embedded">{t('automationEditor.embed')}</option><option value="slot">{t('automationEditor.chooseEachRun')}</option>
         </select>
-        {job.source.kind === 'embedded' ? <label>{t('automationEditor.importResource')}
-          <input className={automationInput} type="file" aria-label={t('automationEditor.importResource')} accept={kind === 'validation' ? '.json,.ids' : '.comparison.json,.json'}
+        {job.source.kind === 'embedded' ? <><label>{t('automationEditor.importResource')}
+          <input className={automationInput} type="file" aria-label={t('automationEditor.importResource')} accept={kind === 'validation' ? (BIMPEIL_IDS_ONLY ? '.json' : '.json,.ids') : '.comparison.json,.json'}
             onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void importFile(index, file); }} />
           <span>{job.source.name}</span>
-        </label> : <>
+        </label>
+        {/* BIMpeil: een IDS uit BIMpeil in deze job */}
+        {kind === 'validation' && <BimpeilIdsSource compact onLoaded={(xml, name) => { parseIDS(xml); update(index, { source: { kind: 'embedded', value: xml, name } }); }} />}
+        </> : <>
           <select className={automationInput} aria-label={t('automationEditor.resourceSlot')} value={job.source.slotId}
             onChange={(event) => update(index, { source: { kind: 'slot', slotId: event.target.value } })}>
             <option value="">{t('automationEditor.chooseSlot')}</option>{slots.map((slot) => <option key={slot}>{slot}</option>)}
