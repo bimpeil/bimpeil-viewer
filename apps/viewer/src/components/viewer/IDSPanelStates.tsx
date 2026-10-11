@@ -14,6 +14,8 @@ import { IDSAuditSummary } from './IDSAuditSummary';
 import { AnalysisEmptyState } from './analysis/AnalysisEmptyState';
 import type { AnalysisProgressState } from './analysis/AnalysisProgress';
 import { AnalysisRunButton } from './analysis/AnalysisRunActions';
+// BIMpeil: IDS uit het project en de bibliotheek (src/bimpeil/BimpeilIdsSource.tsx)
+import { BimpeilIdsSource } from '@/bimpeil/BimpeilIdsSource';
 
 /** IDS validation progress as the shared analysis progress state (#5834). */
 export function idsProgressState(
@@ -67,6 +69,8 @@ export function IDSPanelStates({ ids, fileInputRef, onFileSelect, onLoadClick }:
           )}
           loadDemo={loadDemoIdsWithProject}
         />
+        {/* BIMpeil: IDS uit BIMpeil */}
+        <BimpeilIdsSource />
       </div>
     );
   }

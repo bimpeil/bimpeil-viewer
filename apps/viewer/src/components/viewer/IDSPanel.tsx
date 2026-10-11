@@ -16,7 +16,7 @@
  */
 
 import React, { useCallback, useState, useMemo, useRef, useEffect } from 'react';
-import { FileText, Trash2, Upload } from 'lucide-react';
+import { FileText, FolderOpen, Trash2, Upload } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
 import { useIDS } from '@/hooks/useIDS';
 import { openGenericFileDialog } from '@/services/file-dialog';
@@ -196,6 +196,10 @@ export function IDSPanel({ onClose, embedded = false }: IDSPanelProps) {
           <input ref={fileInputRef} type="file" accept=".ids,.xml" className="hidden" onChange={handleFileSelect} />
           <IconButton label={t('idsPanel.loadNew')} className="h-7 w-7" onClick={() => { void handleLoadIdsClick(); }}>
             <Upload className="h-4 w-4" />
+          </IconButton>
+          {/* BIMpeil: terug naar de keuze met IDS uit BIMpeil (de lege stand van het paneel) */}
+          <IconButton label="Andere IDS uit BIMpeil" className="h-7 w-7" onClick={() => { clearIDS(); clearValidation(); }}>
+            <FolderOpen className="h-4 w-4" />
           </IconButton>
           <IconButton label={t('idsPanel.unload')} className="h-7 w-7" onClick={() => { clearIDS(); clearValidation(); }}>
             <Trash2 className="h-4 w-4" />
