@@ -10,11 +10,14 @@
  * Openen gaat via `?doel=viewer`, zodat het audit log "bestand geopend" toont.
  * Uploaden (V2): open modellen die niet uit BIMpeil komen, of een bestand van schijf, via de webapp
  * (upload.ts). Na het uploaden geldt een open model als BIMpeil model (federaties, change sets).
+ * Alles sluiten (11 oktober 2026): IfcLite heeft geen knop om het laatste model te sluiten; hier wel, met een bevestiging
+ * alleen als een model wijzigingen heeft (dirtyModels; IfcLite weet niet of die als change set bewaard zijn).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { CloudUpload, FolderOpen, HardDrive, Plus, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/icon-button';
 import { toast } from '@/components/ui/toast';
 import { useViewerStore, type FederatedModel } from '@/store';
@@ -56,6 +59,20 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
   const models = useViewerStore((s) => s.models);
   const loading = useViewerStore((s) => s.loading);
   const hasModels = models.size > 0;
+  // Alles sluiten: met wijzigingen eerst bevestigen (de namen van de modellen met wijzigingen)
+  const dirtyModels = useViewerStore((s) => s.dirtyModels);
+  const [confirmClose, setConfirmClose] = useState<string[] | null>(null);
+  const closeAll = useCallback(() => {
+    const { resetViewerState, clearAllModels } = useViewerStore.getState();
+    resetViewerState();
+    clearAllModels();
+    setConfirmClose(null);
+  }, []);
+  const requestCloseAll = useCallback(() => {
+    const changed = [...dirtyModels].map((id) => models.get(id)?.name).filter((n): n is string => !!n);
+    if (changed.length > 0) setConfirmClose(changed);
+    else closeAll();
+  }, [dirtyModels, models, closeAll]);
   // Herkomst per open model; `refsChanged` ververst na een upload (de herkomst staat buiten de store)
   const [refsChanged, setRefsChanged] = useState(0);
   const openModels = useMemo(() => [...models.values()] as FederatedModel[], [models]);
@@ -255,11 +272,32 @@ export function BimpeilFilesPanel({ onClose }: { onClose?: () => void }) {
               Lokaal toevoegen
             </Button>
           )}
+          {hasModels && (
+            <Button type="button" size="sm" variant="ghost" disabled={loading} onClick={requestCloseAll}>
+              <X className="h-3 w-3" aria-hidden="true" />
+              Alles sluiten
+            </Button>
+          )}
         </div>
         <p className="mt-1 text-2xs text-muted-foreground">
           Een lokaal geopend bestand staat niet in BIMpeil, tot je het uploadt. Statussen regel je in BIMpeil, bij Bestanden.
         </p>
       </div>
+      <Dialog open={confirmClose !== null} onOpenChange={(open) => { if (!open) setConfirmClose(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alles sluiten?</DialogTitle>
+            <DialogDescription>
+              In {confirmClose?.join(', ')} staan wijzigingen uit de viewer. Heb je die niet als change set in BIMpeil bewaard,
+              dan gaan ze verloren.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmClose(null)}>Annuleren</Button>
+            <Button type="button" variant="destructive" onClick={closeAll}>Alles sluiten</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
