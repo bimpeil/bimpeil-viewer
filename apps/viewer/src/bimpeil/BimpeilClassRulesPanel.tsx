@@ -5,32 +5,48 @@
 /**
  * BIMpeil: paneel Classificatieregels (K2). Een set van het actieve project kiezen, de klassen met hun aantallen,
  * kleuren per klas (de lens uit classRulesStore.ts), per klas isoleren en verbergen, en de modelboom per klas openen.
- * Bewerken komt in K3; tot dan staan de regels alleen te lezen.
+ * Bewerken (K3) in BimpeilClassRulesEditor.tsx; een nieuwe set via een dialoog met alleen de naam.
  */
 
-import { useMemo } from 'react';
-import { Eye, EyeOff, Focus, ListTree, RefreshCw, Shapes, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Eye, EyeOff, Focus, ListTree, Pencil, Plus, RefreshCw, Shapes, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/icon-button';
 import { Switch } from '@/components/ui/switch';
 import { useViewerStore } from '@/store';
 import { useBimpeilContext } from './context';
 import { flattenClasses } from './classRules';
-import { CLASS_RULES_LENS_ID, chooseClassRuleSet, loadClassRuleSets, showClassColors, useClassRules, type ClassMember } from './classRulesStore';
+import { BimpeilClassRulesEditor } from './BimpeilClassRulesEditor';
+import {
+  CLASS_RULES_LENS_ID,
+  activeClasses,
+  chooseClassRuleSet,
+  createClassRuleSet,
+  loadClassRuleSets,
+  showClassColors,
+  startEditing,
+  useClassRules,
+  type ClassMember,
+} from './classRulesStore';
 import { UNCLASSIFIED_LABEL } from './classRulesTree';
 
 const GREY = '#9ca3af';
 
 export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
   const project = useBimpeilContext((s) => s.project);
-  const { sets, listError, loaded, loading, computing, result, error } = useClassRules();
+  const { sets, canEdit, listError, loaded, loading, computing, result, error, draft } = useClassRules();
+  const [newName, setNewName] = useState<string | null>(null);
+  const [newError, setNewError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const colorsOn = useViewerStore((s) => s.activeLensId === CLASS_RULES_LENS_ID);
   const hiddenEntities = useViewerStore((s) => s.hiddenEntities);
   const isolated = useViewerStore((s) => s.isolatedEntities);
 
   const rows = useMemo(() => {
-    if (!loaded || !result) return [];
-    const list = flattenClasses(loaded.definition.classes).map(({ cls, depth }) => ({
+    const classes = activeClasses({ loaded, draft });
+    if (!classes || !result) return [];
+    const list = flattenClasses(classes).map(({ cls, depth }) => ({
       key: cls.id,
       name: cls.name,
       code: cls.code,
@@ -40,11 +56,24 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
     }));
     if (result.unclassified.length) list.push({ key: 'niet', name: UNCLASSIFIED_LABEL, code: undefined, color: GREY, depth: 0, members: result.unclassified });
     return list;
-  }, [loaded, result]);
+  }, [loaded, draft, result]);
 
   const ids = (members: ClassMember[]) => members.map((m) => m.globalId);
   const allHidden = (members: ClassMember[]) => members.length > 0 && members.every((m) => hiddenEntities.has(m.globalId));
   const isIsolated = (members: ClassMember[]) => !!isolated && isolated.size === members.length && members.every((m) => isolated.has(m.globalId));
+
+  async function create() {
+    const name = (newName ?? '').trim();
+    if (!name) {
+      setNewError('Geef de set een naam.');
+      return;
+    }
+    setCreating(true);
+    const problem = await createClassRuleSet(name);
+    setCreating(false);
+    if (problem) setNewError(problem);
+    else setNewName(null);
+  }
 
   function openTree() {
     const viewer = useViewerStore.getState();
@@ -80,7 +109,7 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
             id="bimpeil-klassen-set"
             className="h-8 w-full rounded-md border bg-background px-2 text-sm"
             value={loaded?.id ?? ''}
-            disabled={sets === null || loading}
+            disabled={sets === null || loading || !!draft}
             onChange={(e) => void chooseClassRuleSet(e.target.value || null)}
           >
             <option value="">{sets === null ? 'Laden…' : sets.length === 0 ? 'Nog geen classificatieregels in dit project' : 'Kies een set'}</option>
@@ -90,6 +119,12 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
               </option>
             ))}
           </select>
+          {canEdit && !draft && (
+            <Button type="button" size="sm" variant="outline" onClick={() => { setNewName(''); setNewError(null); }}>
+              <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+              Nieuwe set
+            </Button>
+          )}
           {listError && <p className="text-xs text-destructive" role="alert">{listError}</p>}
           {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
           {loaded && (
@@ -112,16 +147,28 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
                   Boom per klas
                 </Button>
               </div>
+              {loaded.canEdit && !draft && (
+                loaded.version === loaded.latestVersion ? (
+                  <Button type="button" size="sm" variant="outline" onClick={startEditing}>
+                    <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                    Bewerken
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Bewerken kan alleen op de nieuwste versie.</p>
+                )
+              )}
             </>
           )}
         </div>
       )}
 
-      {loaded && computing && !result && <p className="p-3 text-sm text-muted-foreground">Klassen worden uitgerekend…</p>}
-      {loaded && !computing && !result && !error && <p className="p-3 text-sm text-muted-foreground">Open een model om te zien wat er in elke klas valt.</p>}
-      {loaded && result && rows.length === 0 && <p className="p-3 text-sm text-muted-foreground">Deze classificatieregels hebben nog geen klassen.</p>}
+      {draft && <BimpeilClassRulesEditor />}
 
-      {rows.length > 0 && (
+      {!draft && loaded && computing && !result && <p className="p-3 text-sm text-muted-foreground">Klassen worden uitgerekend…</p>}
+      {!draft && loaded && !computing && !result && !error && <p className="p-3 text-sm text-muted-foreground">Open een model om te zien wat er in elke klas valt.</p>}
+      {!draft && loaded && result && rows.length === 0 && <p className="p-3 text-sm text-muted-foreground">Deze classificatieregels hebben nog geen klassen.</p>}
+
+      {!draft && rows.length > 0 && (
         <ol className="min-h-0 flex-1 overflow-y-auto py-1" aria-busy={computing}>
           {rows.map((row) => {
             const hidden = allHidden(row.members);
@@ -155,6 +202,32 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
           })}
         </ol>
       )}
+
+      <Dialog open={newName !== null} onOpenChange={(open) => { if (!open) setNewName(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nieuwe classificatieregels</DialogTitle>
+            <DialogDescription>Een lege set in {project?.code}; daarna voeg je de klassen toe.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); void create(); }} className="space-y-2">
+            <label className="block text-sm">
+              Naam
+              <input
+                autoFocus
+                className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-sm"
+                value={newName ?? ''}
+                maxLength={100}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </label>
+            {newError && <p className="text-xs text-destructive" role="alert">{newError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setNewName(null)}>Annuleren</Button>
+              <Button type="submit" disabled={creating}>{creating ? 'Aanmaken…' : 'Aanmaken'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

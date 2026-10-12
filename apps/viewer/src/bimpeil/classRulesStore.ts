@@ -25,7 +25,10 @@ import { useBimpeilContext } from './context';
 import {
   assignClasses,
   flattenClasses,
+  forSave,
   parseDefinition,
+  type ClassRulesDefinition,
+  type RuleClass,
   type ClassRuleSetSummary,
   type EvaluateGroups,
   type IdsByModel,
@@ -63,6 +66,11 @@ interface State {
   error: string | null;
   /** De lens voor useLens, met de treffers per regel (klas) */
   lens: { lens: Lens; matched: Map<string, Set<number>> } | null;
+  /** Bewerken (K3): het concept; rekenen, kleuren en de boom volgen het concept zolang het er is */
+  draft: ClassRulesDefinition | null;
+  dirty: boolean;
+  saving: boolean;
+  saveError: { message: string; newer?: boolean } | null;
 }
 
 export const useClassRules = create<State>(() => ({
@@ -76,7 +84,14 @@ export const useClassRules = create<State>(() => ({
   result: null,
   error: null,
   lens: null,
+  draft: null,
+  dirty: false,
+  saving: false,
+  saveError: null,
 }));
+
+/** De klassen waarmee nu gerekend wordt: het concept tijdens bewerken, anders de geladen versie */
+export const activeClasses = (s: Pick<State, 'draft' | 'loaded'>): RuleClass[] | null => (s.draft ?? s.loaded?.definition)?.classes ?? null;
 
 const rememberKey = (projectId: string) => `bimpeil:classificatieregels:${projectId}`;
 function remembered(projectId: string): string | null {
@@ -103,6 +118,12 @@ async function json<T>(path: string): Promise<T> {
 }
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+async function send<T>(method: 'POST' | 'PUT', path: string, body: unknown): Promise<{ ok: true; data: T } | { ok: false; status: number; data: { error?: string; newer?: boolean } }> {
+  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = (await r.json().catch(() => ({}))) as T & { error?: string; newer?: boolean };
+  return r.ok ? { ok: true, data } : { ok: false, status: r.status, data };
+}
+
 /** De sets van het project ophalen; zonder gekozen set de vorige keuze in deze browser openen */
 export async function loadClassRuleSets(projectId: string): Promise<void> {
   useClassRules.setState({ listError: null });
@@ -125,10 +146,10 @@ export async function chooseClassRuleSet(setId: string | null, version?: number)
   if (!setId) {
     remember(projectId, null);
     showClassColors(false);
-    useClassRules.setState({ loaded: null, result: null, lens: null, error: null });
+    useClassRules.setState({ loaded: null, result: null, lens: null, error: null, draft: null, dirty: false, saveError: null });
     return;
   }
-  useClassRules.setState({ loading: true, error: null });
+  useClassRules.setState({ loading: true, error: null, draft: null, dirty: false, saveError: null });
   try {
     const d = await json<Omit<LoadedClassRuleSet, 'definition'> & { definition: unknown }>(
       `/api/projects/${projectId}/class-rules/${setId}${version ? `?versie=${version}` : ''}`,
@@ -177,7 +198,7 @@ let running: AbortController | null = null;
 /** De gekozen set opnieuw uitrekenen op de modellen die nu geladen zijn */
 export async function computeClassRules(): Promise<void> {
   running?.abort();
-  const { loaded } = useClassRules.getState();
+  const { loaded, draft } = useClassRules.getState();
   const state = useViewerStore.getState();
   if (!loaded || (state.models.size === 0 && !state.ifcDataStore)) {
     useClassRules.setState({ result: null, lens: null, computing: false });
@@ -202,14 +223,15 @@ export async function computeClassRules(): Promise<void> {
     return out;
   };
   try {
-    const assignment = await assignClasses(loaded.definition.classes, candidatesOf(), evaluate, controller.signal);
+    const classes = (draft ?? loaded.definition).classes;
+    const assignment = await assignClasses(classes, candidatesOf(), evaluate, controller.signal);
     if (controller.signal.aborted) return;
     const models = useViewerStore.getState().models;
     const members = (ids: IdsByModel): ClassMember[] =>
       [...ids].flatMap(([modelId, list]) => list.map((expressId) => ({ modelId, expressId, globalId: toGlobalIdFromModels(models, modelId, expressId) })));
     const own = new Map([...assignment.own].map(([id, ids]) => [id, members(ids)]));
     const all = new Map([...assignment.all].map(([id, ids]) => [id, members(ids)]));
-    const flat = flattenClasses(loaded.definition.classes);
+    const flat = flattenClasses(classes);
     // Eén regel per klas; de treffers zijn de elementen in de klas zelf, dus nooit twee regels voor één element
     const lens: Lens = {
       id: CLASS_RULES_LENS_ID,
@@ -238,6 +260,7 @@ export function useBimpeilClassLens() {
 export function useBimpeilClassRulesSync(): void {
   const project = useBimpeilContext((s) => s.project);
   const loaded = useClassRules((s) => s.loaded);
+  const draft = useClassRules((s) => s.draft);
   const models = useViewerStore((s) => s.models);
   const ifcDataStore = useViewerStore((s) => s.ifcDataStore);
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
@@ -247,7 +270,7 @@ export function useBimpeilClassRulesSync(): void {
     if (useClassRules.getState().projectId === projectId) return;
     running?.abort();
     showClassColors(false);
-    useClassRules.setState({ projectId, sets: null, canEdit: false, listError: null, loaded: null, result: null, lens: null, error: null, computing: false });
+    useClassRules.setState({ projectId, sets: null, canEdit: false, listError: null, loaded: null, result: null, lens: null, error: null, computing: false, draft: null, dirty: false, saveError: null });
     if (projectId) void loadClassRuleSets(projectId);
   }, [project]);
 
@@ -255,5 +278,70 @@ export function useBimpeilClassRulesSync(): void {
     // Even wachten: bij het laden van een federatie komen de modellen kort na elkaar binnen
     const timer = setTimeout(() => void computeClassRules(), 300);
     return () => clearTimeout(timer);
-  }, [loaded, models, ifcDataStore, mutationVersion]);
+  }, [loaded, draft, models, ifcDataStore, mutationVersion]);
+}
+
+// --------------------------------------------------------------------------------------------- bewerken (K3)
+
+/** Bewerken beginnen op de geladen versie; alleen de nieuwste, anders botst opslaan altijd */
+export function startEditing(): void {
+  const { loaded } = useClassRules.getState();
+  if (!loaded?.canEdit || loaded.version !== loaded.latestVersion) return;
+  useClassRules.setState({ draft: structuredClone(loaded.definition), dirty: false, saveError: null });
+}
+
+/** De klassen in het concept vervangen (elke bewerking geeft een nieuwe boom) */
+export function setDraftClasses(classes: RuleClass[]): void {
+  useClassRules.setState({ draft: { schema: 1, classes }, dirty: true, saveError: null });
+}
+
+/** Stoppen zonder op te slaan: het concept gaat weg */
+export function stopEditing(): void {
+  useClassRules.setState({ draft: null, dirty: false, saveError: null });
+}
+
+/** Het concept opslaan als nieuwe versie; bij een nieuwere versie van een ander een melding, het concept blijft staan */
+export async function saveDraft(note: string): Promise<boolean> {
+  const { projectId, loaded, draft } = useClassRules.getState();
+  if (!projectId || !loaded || !draft) return false;
+  const ready = forSave(draft);
+  if ('error' in ready) {
+    useClassRules.setState({ saveError: { message: ready.error } });
+    return false;
+  }
+  useClassRules.setState({ saving: true, saveError: null });
+  try {
+    const r = await send<{ version: number }>('PUT', `/api/projects/${projectId}/class-rules/${loaded.id}`, {
+      baseVersion: loaded.version,
+      definition: ready.definition,
+      ...(note.trim() ? { note: note.trim() } : {}),
+    });
+    if (!r.ok) {
+      useClassRules.setState({ saving: false, saveError: { message: r.data.error ?? `BIMpeil antwoordt met ${r.status}`, newer: r.data.newer } });
+      return false;
+    }
+    useClassRules.setState({ saving: false });
+    await chooseClassRuleSet(loaded.id);
+    void loadClassRuleSets(projectId);
+    return true;
+  } catch (e) {
+    useClassRules.setState({ saving: false, saveError: { message: message(e) } });
+    return false;
+  }
+}
+
+/** Een nieuwe, lege set; daarna gekozen en meteen in bewerken. Geeft een foutmelding of null. */
+export async function createClassRuleSet(name: string): Promise<string | null> {
+  const { projectId } = useClassRules.getState();
+  if (!projectId) return 'Geen project.';
+  try {
+    const r = await send<{ id: string }>('POST', `/api/projects/${projectId}/class-rules`, { name });
+    if (!r.ok) return r.data.error ?? `BIMpeil antwoordt met ${r.status}`;
+    await loadClassRuleSets(projectId);
+    await chooseClassRuleSet(r.data.id);
+    startEditing();
+    return null;
+  } catch (e) {
+    return message(e);
+  }
 }

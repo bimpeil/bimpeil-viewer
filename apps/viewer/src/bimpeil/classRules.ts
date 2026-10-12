@@ -143,3 +143,128 @@ export function parseDefinition(raw: unknown): ClassRulesDefinition | null {
   const classes = walk(raw.classes);
   return classes ? { schema: 1, classes } : null;
 }
+
+// --------------------------------------------------------------------------------------------- bewerken (K3)
+
+/** Kleuren voor een nieuwe klas, op volgorde; geen amber (dat is in BIMpeil alleen voor de bel) */
+export const CLASS_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#0d9488', '#db2777', '#4f46e5', '#65a30d', '#0891b2', '#7c3aed'];
+
+/** Soorten regels die BIMpeil in een klas toestaat (packages/shared/src/class-rules.ts); de rest staat niet in de editor */
+export const CLASS_RULE_KINDS = new Set([
+  'ifcType', 'predefinedType', 'storey', 'name', 'attribute', 'property', 'quantity', 'material', 'classification', 'elevation', 'type', 'parent', 'group',
+] as const);
+
+export const newClassId = () => `k${Math.random().toString(36).slice(2, 10)}`;
+
+/** De lijst waarin een klas staat, met de plek */
+function locate(classes: RuleClass[], id: string): { list: RuleClass[]; index: number; parent: RuleClass | null } | null {
+  const walk = (list: RuleClass[], parent: RuleClass | null): ReturnType<typeof locate> => {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].id === id) return { list, index: i, parent };
+      const found = walk(list[i].children ?? [], list[i]);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(classes, null);
+}
+
+/** Diepe kopie, zodat React en de store elke wijziging als nieuw zien */
+const copy = (classes: RuleClass[]): RuleClass[] => structuredClone(classes);
+const tidy = (cls: RuleClass) => {
+  if (cls.children && cls.children.length === 0) delete cls.children;
+};
+
+export function findClass(classes: RuleClass[], id: string): RuleClass | null {
+  const at = locate(classes, id);
+  return at ? at.list[at.index] : null;
+}
+
+/** Een nieuwe klas: na `afterId` op hetzelfde niveau, als laatste kind van `parentId`, of anders onderaan */
+export function addClass(classes: RuleClass[], cls: RuleClass, where: { afterId?: string; parentId?: string } = {}): RuleClass[] {
+  const next = copy(classes);
+  if (where.parentId) {
+    const parent = findClass(next, where.parentId);
+    if (parent) {
+      parent.children = [...(parent.children ?? []), cls];
+      return next;
+    }
+  }
+  const at = where.afterId ? locate(next, where.afterId) : null;
+  if (at) at.list.splice(at.index + 1, 0, cls);
+  else next.push(cls);
+  return next;
+}
+
+export function updateClass(classes: RuleClass[], id: string, patch: Partial<Omit<RuleClass, 'id' | 'children'>>): RuleClass[] {
+  const next = copy(classes);
+  const cls = findClass(next, id);
+  if (cls) Object.assign(cls, patch);
+  if (cls && patch.code !== undefined && !patch.code) delete cls.code;
+  return next;
+}
+
+export function removeClass(classes: RuleClass[], id: string): RuleClass[] {
+  const next = copy(classes);
+  const at = locate(next, id);
+  if (!at) return next;
+  at.list.splice(at.index, 1);
+  if (at.parent) tidy(at.parent);
+  return next;
+}
+
+/** Eén plek omhoog of omlaag binnen hetzelfde niveau (de volgorde bepaalt welke klas wint) */
+export function moveClass(classes: RuleClass[], id: string, delta: -1 | 1): RuleClass[] {
+  const next = copy(classes);
+  const at = locate(next, id);
+  if (!at) return next;
+  const to = at.index + delta;
+  if (to < 0 || to >= at.list.length) return next;
+  const [cls] = at.list.splice(at.index, 1);
+  at.list.splice(to, 0, cls);
+  return next;
+}
+
+/** Inspringen: laatste kind van de klas erboven. Uitspringen: direct na de ouder. */
+export function indentClass(classes: RuleClass[], id: string, direction: 'in' | 'out'): RuleClass[] {
+  const next = copy(classes);
+  const at = locate(next, id);
+  if (!at) return next;
+  const cls = at.list[at.index];
+  if (direction === 'in') {
+    if (at.index === 0) return next;
+    const above = at.list[at.index - 1];
+    at.list.splice(at.index, 1);
+    above.children = [...(above.children ?? []), cls];
+    return next;
+  }
+  if (!at.parent) return next;
+  const outer = locate(next, at.parent.id);
+  if (!outer) return next;
+  at.list.splice(at.index, 1);
+  tidy(at.parent);
+  outer.list.splice(outer.index + 1, 0, cls);
+  return next;
+}
+
+/**
+ * Klaar om op te slaan: groepen zonder regels weg (BIMpeil weigert ze). Een klas met alleen lege groepen is nog niet
+ * af: zonder groepen zou hij alles nemen wat over is, en dat is iets anders dan wat de gebruiker ziet (een lege groep
+ * past nergens op). Dan een fout met de naam van de klas.
+ */
+export function forSave(definition: ClassRulesDefinition): { definition: ClassRulesDefinition } | { error: string } {
+  let error: string | null = null;
+  const clean = (list: RuleClass[]): RuleClass[] =>
+    list.map((cls) => {
+      const groups = cls.groups.filter((g) => g.rules.length > 0);
+      if (cls.groups.length > 0 && groups.length === 0 && !error) {
+        error = `Klas "${cls.name}" heeft een lege groep regels. Geef een regel, of haal de groep weg als de klas alles mag nemen wat over is.`;
+      }
+      const out: RuleClass = { ...cls, groups };
+      if (cls.children?.length) out.children = clean(cls.children);
+      else delete out.children;
+      return out;
+    });
+  const classes = clean(definition.classes);
+  return error ? { error } : { definition: { schema: 1, classes } };
+}

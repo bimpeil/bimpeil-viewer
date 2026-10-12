@@ -12,7 +12,7 @@
 import type { TreeNode } from '@/components/viewer/hierarchy/types';
 import { asNodes, type Bucket, type Member } from './ilsTree';
 import type { RuleClass } from './classRules';
-import { useClassRules, type ClassMember, type ClassResult } from './classRulesStore';
+import { activeClasses, useClassRules, type ClassMember, type ClassResult } from './classRulesStore';
 
 export const UNCLASSIFIED_LABEL = '(niet geclassificeerd)';
 export const OWN_LABEL = '(in de klas zelf)';
@@ -63,5 +63,5 @@ export function buildClassRulesTree(state: { classes: RuleClass[] | null; result
 /** Voor de modelboom (revealGlobalId.ts): de boom uit wat de store nu heeft */
 export function buildClassRulesTreeFromStore(): TreeNode[] {
   const s = useClassRules.getState();
-  return buildClassRulesTree({ classes: s.loaded?.definition.classes ?? null, result: s.result, computing: s.computing });
+  return buildClassRulesTree({ classes: activeClasses(s), result: s.result, computing: s.computing });
 }

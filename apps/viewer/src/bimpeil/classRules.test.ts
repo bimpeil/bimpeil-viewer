@@ -6,7 +6,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { FilterGroup } from '@ifc-lite/rules';
-import { assignClasses, flattenClasses, idsCount, parseDefinition, type EvaluateGroups, type IdsByModel, type RuleClass } from './classRules';
+import {
+  addClass, assignClasses, findClass, flattenClasses, forSave, idsCount, indentClass, moveClass, parseDefinition, removeClass, updateClass,
+  type EvaluateGroups, type IdsByModel, type RuleClass,
+} from './classRules';
 import { classBuckets, OWN_LABEL, UNCLASSIFIED_LABEL } from './classRulesTree';
 import type { ClassMember, ClassResult } from './classRulesStore';
 
@@ -105,4 +108,47 @@ test('boom: klassen op volgorde, (in de klas zelf) alleen bij kinderen, niet gec
   assert.deepEqual(buckets.map((b) => `${b.label}:${b.members.length}`), ['wanden:2', 'deuren:0', `${UNCLASSIFIED_LABEL}:1`]);
   assert.deepEqual(buckets[0].children?.map((b) => `${b.label}:${b.members.length}`), ['dragend:1', `${OWN_LABEL}:1`]);
   assert.equal(buckets[1].children, undefined);
+});
+
+// --------------------------------------------------------------------------------------------- bewerken (K3)
+
+const shape = (list: RuleClass[]) => flattenClasses(list).map(({ cls: c, depth }) => `${'.'.repeat(depth)}${c.id}`).join(' ');
+const tree = () => [cls('a', []), cls('b', [], [cls('b1', []), cls('b2', [])]), cls('c', [])];
+
+test('bewerken: toevoegen na een klas, als kind en onderaan; nooit de oude boom wijzigen', () => {
+  const before = tree();
+  assert.equal(shape(addClass(before, cls('n', []), { afterId: 'b1' })), 'a b .b1 .n .b2 c');
+  assert.equal(shape(addClass(before, cls('n', []), { parentId: 'c' })), 'a b .b1 .b2 c .n');
+  assert.equal(shape(addClass(before, cls('n', []))), 'a b .b1 .b2 c n');
+  assert.equal(shape(before), 'a b .b1 .b2 c', 'de oude boom blijft');
+});
+
+test('bewerken: verplaatsen binnen een niveau, in- en uitspringen', () => {
+  assert.equal(shape(moveClass(tree(), 'c', -1)), 'a c b .b1 .b2');
+  assert.equal(shape(moveClass(tree(), 'a', -1)), 'a b .b1 .b2 c', 'bovenaan blijft bovenaan');
+  assert.equal(shape(moveClass(tree(), 'b2', -1)), 'a b .b2 .b1 c');
+  assert.equal(shape(indentClass(tree(), 'c', 'in')), 'a b .b1 .b2 .c');
+  assert.equal(shape(indentClass(tree(), 'b2', 'in')), 'a b .b1 ..b2 c');
+  assert.equal(shape(indentClass(tree(), 'a', 'in')), 'a b .b1 .b2 c', 'de eerste kan niet inspringen');
+  assert.equal(shape(indentClass(tree(), 'b1', 'out')), 'a b .b2 b1 c', 'direct na de ouder');
+  const last = indentClass(indentClass(tree(), 'b1', 'out'), 'b2', 'out');
+  assert.equal(findClass(last, 'b')?.children, undefined, 'een lege lijst kinderen gaat weg');
+});
+
+test('bewerken: aanpassen en verwijderen (met de klassen eronder)', () => {
+  const named = updateClass(tree(), 'b1', { name: 'Dragend', code: '21.1' });
+  assert.equal(findClass(named, 'b1')?.name, 'Dragend');
+  assert.equal(findClass(updateClass(named, 'b1', { code: '' }), 'b1')?.code, undefined, 'lege code weg');
+  assert.equal(shape(removeClass(tree(), 'b')), 'a c');
+  assert.equal(shape(removeClass(tree(), 'b2')), 'a b .b1 c');
+});
+
+test('opslaan: lege groepen weg; een klas met alleen lege groepen is nog niet af', () => {
+  const empty = { combinator: 'AND' as const, rules: [] };
+  const ok = forSave({ schema: 1, classes: [cls('a', [type('IfcWall'), empty]), cls('rest', [])] });
+  assert.ok('definition' in ok);
+  assert.equal(ok.definition.classes[0].groups.length, 1);
+  const half = forSave({ schema: 1, classes: [cls('a', [], [cls('kind', [empty])])] });
+  assert.ok('error' in half);
+  assert.match(half.error, /Klas "kind" heeft een lege groep/);
 });
