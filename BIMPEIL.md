@@ -53,6 +53,7 @@ Gewijzigde bestanden van ifc-lite (onder `apps/viewer/src/`):
 - `components/viewer/IDSPanel.tsx`, `IDSPanelStates.tsx`, `validation/ValidationPanel.empty.tsx` (IDS alleen uit BIMpeil, `src/bimpeil/BimpeilIdsSource.tsx`, vlag en controle in `src/bimpeil/idsOnly.ts`)
 - `components/viewer/flow/automation/CheckJobsEditor.tsx`, `lib/flow/check-resources.ts`, en in de test `lib/flow/session-workflow.test.ts` (in Flow een IDS alleen uit BIMpeil)
 - `components/viewer/HierarchyPanel.tsx` en in `components/viewer/hierarchy/`: `types.ts`, `revealGlobalId.ts`, `useHierarchyTree.ts`, `rowSelection.ts`, `useHierarchyTreeKeyboard.ts`, `HierarchyNode.tsx` (indeling per hoofdstuk van de BIM basis ILS, de boom zelf in `src/bimpeil/ilsTree.ts`)
+- `hooks/useLens.ts` (de lens van de classificatieregels: niet bewaard, treffers al uitgerekend in `src/bimpeil/classRulesStore.ts`); de boom per klas (`klassen`) gebruikt dezelfde haken als de ILS indeling hierboven
 - `hooks/useKeyboardShortcuts.ts`, `hooks/usePanelControls.ts`
 - `i18n/en.ts`
 - `lib/panels/registry.ts`, `lib/panels/renderPanelBody.tsx`

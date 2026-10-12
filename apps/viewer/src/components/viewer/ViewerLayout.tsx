@@ -31,6 +31,7 @@ import { ExtensionDockHost } from '@/components/extensions/ExtensionDockHost';
 import { ExtensionKeyboardBindings } from '@/components/extensions/ExtensionKeyboardBindings';
 import { useModelUrlAutoload } from '@/hooks/useModelUrlAutoload';
 import { useBimpeilOpen } from '@/bimpeil/useBimpeilOpen';
+import { useBimpeilClassRulesSync } from '@/bimpeil/classRulesStore';
 import { useViewerStore } from '@/store';
 import { isCollabEnabled } from '@/lib/collab/config';
 import { toast } from '@/components/ui/toast';
@@ -93,6 +94,8 @@ export function ViewerLayout() {
   useModelUrlAutoload();
   // BIMpeil: modellen openen vanuit de webapp eromheen (bimpeil/useBimpeilOpen.ts)
   useBimpeilOpen();
+  // BIMpeil: classificatieregels van het project ophalen en uitrekenen op de modellen (bimpeil/classRulesStore.ts)
+  useBimpeilClassRulesSync();
 
   // Deep-link collaboration join: a share link is `?room=…&t=…`. The recipient
   // joins the room; with seed-into-room the model hydrates from the Y.Doc, so

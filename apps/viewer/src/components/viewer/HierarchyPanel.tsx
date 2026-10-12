@@ -5,7 +5,7 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from '@/i18n';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, Building2, Layers, LayoutTemplate, FileBox, GripHorizontal, Palette, Network, ClipboardCheck } from 'lucide-react';
+import { Search, Building2, Layers, LayoutTemplate, FileBox, GripHorizontal, Palette, Network, ClipboardCheck, Shapes } from 'lucide-react';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -564,6 +564,17 @@ export function HierarchyPanel() {
         <ClipboardCheck className="h-3 w-3 shrink-0 panel-compact-icon" />
         <span className="panel-compact-text">{t('bimpeil.hierarchy.ils.tab')}</span>
       </Button>
+      {/* BIMpeil: per klas van de gekozen classificatieregels (src/bimpeil/classRulesTree.ts) */}
+      <Button
+        variant={groupingMode === 'klassen' ? 'default' : 'outline'}
+        size="sm"
+        className="h-6 text-2xs flex-1 min-w-0 rounded-none uppercase tracking-wider"
+        onClick={() => setGroupingMode('klassen')}
+        title={t('bimpeil.hierarchy.klassen.tooltip')}
+      >
+        <Shapes className="h-3 w-3 shrink-0 panel-compact-icon" />
+        <span className="panel-compact-text">{t('bimpeil.hierarchy.klassen.tab')}</span>
+      </Button>
     </div>
   );
 
@@ -711,8 +722,8 @@ export function HierarchyPanel() {
 
       {/* Section Header */}
       <SectionHeader
-        icon={groupingMode === 'spatial' ? Building2 : groupingMode === 'type' ? Layers : groupingMode === 'material' ? Palette : groupingMode === 'groups' ? Network : groupingMode === 'ils' ? ClipboardCheck : FileBox}
-        title={groupingMode === 'spatial' ? t('hierarchy.panel.sectionTitle.spatial') : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass') : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial') : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup') : groupingMode === 'ils' ? t('bimpeil.hierarchy.ils.title') : t('hierarchy.panel.sectionTitle.byType')}
+        icon={groupingMode === 'spatial' ? Building2 : groupingMode === 'type' ? Layers : groupingMode === 'material' ? Palette : groupingMode === 'groups' ? Network : groupingMode === 'ils' ? ClipboardCheck : groupingMode === 'klassen' ? Shapes : FileBox}
+        title={groupingMode === 'spatial' ? t('hierarchy.panel.sectionTitle.spatial') : groupingMode === 'type' ? t('hierarchy.panel.sectionTitle.byClass') : groupingMode === 'material' ? t('hierarchy.panel.sectionTitle.byMaterial') : groupingMode === 'groups' ? t('hierarchy.panel.sectionTitle.byGroup') : groupingMode === 'ils' ? t('bimpeil.hierarchy.ils.title') : groupingMode === 'klassen' ? t('bimpeil.hierarchy.klassen.title') : t('hierarchy.panel.sectionTitle.byType')}
         count={filteredNodes.length}
       />
 

@@ -25,6 +25,7 @@ import {
 } from './treeDataBuilder';
 import { findNodePath } from './findNodePath';
 import { buildIlsTree } from '@/bimpeil/ilsTree';
+import { buildClassRulesTreeFromStore } from '@/bimpeil/classRulesTree';
 
 const EXPAND_ALL: ExpansionLookup = { has: () => true };
 
@@ -73,6 +74,8 @@ export function buildTreeForGrouping(
   if (groupingMode === 'ils') {
     return buildIlsTree({ models, ifcDataStore, isMultiModel, geometricIds, geometryReadyModelIds, overlay: treeOverlay }, expansion);
   }
+  // BIMpeil: per klas van de gekozen classificatieregels; uitgerekend in bimpeil/classRulesStore.ts
+  if (groupingMode === 'klassen') return buildClassRulesTreeFromStore();
   if (groupingMode === 'groups') {
     return buildGroupTree(models, ifcDataStore, expansion, isMultiModel, geometricIds, groupFilter, treeOverlay);
   }

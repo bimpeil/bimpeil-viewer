@@ -25,6 +25,7 @@ import {
 } from './hierarchyGeometry';
 import { flattenVisibleHierarchy, indexHierarchyTree } from './treeProjection';
 import { effectiveSpatialMembers } from '@/lib/effective-spatial-members';
+import { useClassRules } from '@/bimpeil/classRulesStore'; // BIMpeil
 
 export type { HierarchyMode } from '@/store';
 
@@ -241,6 +242,9 @@ export function useHierarchyTree({ models, ifcDataStore, isMultiModel, geometryR
   // hiddenEntities intentionally NOT in deps - visibility computed lazily.
   // BIMpeil: de indeling per BIM basis ILS berekent een hoofdstuk pas bij uitklappen, dus krijgt de echte uitklapstand
   const ilsExpansion = groupingMode === 'ils' ? expandedNodes : null;
+  // BIMpeil: de boom per klas opnieuw opbouwen als de uitkomst van de classificatieregels verandert
+  const classRules = useClassRules();
+  const classRulesDep = groupingMode === 'klassen' ? classRules : null;
   const structuralTree = useMemo(
     (): TreeNode[] => groupingMode === 'material' && !materialReady ? [] : buildTreeForGrouping(
       groupingMode, models, ifcDataStore, ilsExpansion ?? EXPAND_ALL, isMultiModel, unifiedStoreys, sortMode,
@@ -249,7 +253,7 @@ export function useHierarchyTree({ models, ifcDataStore, isMultiModel, geometryR
     ),
     [groupingMode, models, ifcDataStore, isMultiModel, unifiedStoreys, sortMode,
       geometricIds, classTreeIds, authoredProducts, groupFilter, geometryReadyModelIds,
-      georefMutations, mutationViews, mutationVersion, materialSourceStores, materialReady, ilsExpansion],
+      georefMutations, mutationViews, mutationVersion, materialSourceStores, materialReady, ilsExpansion, classRulesDep],
   );
   const treeIndex = useMemo(() => indexHierarchyTree(structuralTree), [structuralTree]);
   const getExpandedTreeForReveal = useCallback(() => structuralTree, [structuralTree]);

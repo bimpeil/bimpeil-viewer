@@ -38,6 +38,7 @@ import type { AutoColorEvaluationResult, LensEvaluationResult } from '@ifc-lite/
 import { useViewerStore } from '@/store';
 import { posthog } from '@/lib/analytics';
 import { createLensDataProvider } from '@/lib/lens';
+import { useBimpeilClassLens } from '@/bimpeil/classRulesStore';
 import { evaluateLensGroups } from '@/lib/lens/evaluate-lens-groups';
 import { definedModelTagIdsOf, evaluatorModelsFromState } from '@/lib/model-tags/evaluator-models';
 import { toast } from '@/components/ui/toast';
@@ -62,9 +63,11 @@ export function useLens(): void {
 
   // Derive the active lens object — only re-evaluates when activeLensId or
   // the active lens entry itself changes, not when unrelated lenses are edited.
+  // BIMpeil: ook de lens van de classificatieregels, die niet tussen de bewaarde lenzen staat (bimpeil/classRulesStore.ts)
+  const bimpeilClassLens = useBimpeilClassLens();
   const activeLens = useMemo(
-    () => savedLenses.find(l => l.id === activeLensId) ?? null,
-    [activeLensId, savedLenses],
+    () => savedLenses.find(l => l.id === activeLensId) ?? (bimpeilClassLens?.lens.id === activeLensId ? bimpeilClassLens.lens : null),
+    [activeLensId, savedLenses, bimpeilClassLens],
   );
 
   // Track the previously active lens to detect deactivation
@@ -180,6 +183,12 @@ export function useLens(): void {
       return;
     }
 
+    // BIMpeil: de treffers per klas zijn al uitgerekend (eerste klas wint, kinderen binnen de ouder)
+    if (bimpeilClassLens && activeLens === bimpeilClassLens.lens) {
+      applyResult(evaluateLens(activeLens, provider, bimpeilClassLens.matched));
+      return;
+    }
+
     // Group evaluation yields between rules. Never show a previous Lens while
     // the replacement is pending or after a recoverable rule error.
     if (!modelSetChanged) clearLensOutput();
@@ -197,7 +206,7 @@ export function useLens(): void {
       toast.error('Could not apply this lens.');
     });
     return () => controller.abort();
-  }, [activeLensId, activeLens, modelSetKey, mutationVersion]);
+  }, [activeLensId, activeLens, modelSetKey, mutationVersion, bimpeilClassLens]); // BIMpeil: bimpeilClassLens
 
   // Identity, not `.size`: the evaluation above replaces the Set on every
   // recompute, and a same-size content swap must still resync (#5206).
