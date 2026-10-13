@@ -58,7 +58,7 @@ export function BimpeilClassRulesEditor() {
     setActiveGroup(0);
   };
   const add = (asChild: boolean) => {
-    const cls: RuleClass = { id: newClassId(), name: 'Nieuwe klas', color: CLASS_COLORS[flat.length % CLASS_COLORS.length], groups: [] };
+    const cls: RuleClass = { id: newClassId(), name: 'Nieuwe classificatie', color: CLASS_COLORS[flat.length % CLASS_COLORS.length], groups: [] };
     change(addClass(classes, cls, asChild && selectedId ? { parentId: selectedId } : { afterId: selectedId ?? undefined }));
     select(cls.id);
   };
@@ -87,16 +87,16 @@ export function BimpeilClassRulesEditor() {
         </span>
         <Button type="button" size="sm" variant="outline" onClick={() => add(false)}>
           <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-          Klas
+          Classificatie
         </Button>
         <Button type="button" size="sm" variant="outline" disabled={!selected} onClick={() => add(true)}>
           <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-          Onderliggende klas
+          Onderliggende classificatie
         </Button>
       </div>
 
-      <ol className="max-h-56 overflow-y-auto border-b py-1" aria-label="Klassen">
-        {flat.length === 0 && <li className="px-3 py-2 text-sm text-muted-foreground">Nog geen klassen. Voeg een klas toe.</li>}
+      <ol className="max-h-56 overflow-y-auto border-b py-1" aria-label="Classificaties">
+        {flat.length === 0 && <li className="px-3 py-2 text-sm text-muted-foreground">Nog geen classificaties. Voeg een classificatie toe.</li>}
         {flat.map(({ cls, depth }) => (
           <li key={cls.id}>
             <button
@@ -120,7 +120,7 @@ export function BimpeilClassRulesEditor() {
       {selected && (
         <div className="space-y-2 p-3">
           <div className="flex items-center gap-1">
-            <span className="flex-1 text-xs font-medium text-muted-foreground">Klas</span>
+            <span className="flex-1 text-xs font-medium text-muted-foreground">Classificatie</span>
             <IconButton label="Omhoog (wint eerder)" className="h-6 w-6" onClick={() => change(moveClass(classes, selected.id, -1))}>
               <ArrowUp className="h-3.5 w-3.5" />
             </IconButton>
@@ -130,10 +130,10 @@ export function BimpeilClassRulesEditor() {
             <IconButton label="Uitspringen (een niveau hoger)" className="h-6 w-6" onClick={() => change(indentClass(classes, selected.id, 'out'))}>
               <IndentDecrease className="h-3.5 w-3.5" />
             </IconButton>
-            <IconButton label="Inspringen (onder de klas erboven)" className="h-6 w-6" onClick={() => change(indentClass(classes, selected.id, 'in'))}>
+            <IconButton label="Inspringen (onder de classificatie erboven)" className="h-6 w-6" onClick={() => change(indentClass(classes, selected.id, 'in'))}>
               <IndentIncrease className="h-3.5 w-3.5" />
             </IconButton>
-            <IconButton label={`${selected.name} verwijderen, met de klassen eronder`} className="h-6 w-6" onClick={remove}>
+            <IconButton label={`${selected.name} verwijderen, met de classificaties eronder`} className="h-6 w-6" onClick={remove}>
               <Trash2 className="h-3.5 w-3.5" />
             </IconButton>
           </div>
@@ -157,21 +157,21 @@ export function BimpeilClassRulesEditor() {
             </label>
           </div>
           <label className="block text-xs">
-            Onderliggende klassen
+            Onderliggende classificaties
             <select
               className={field}
               value={selected.childMode ?? ''}
               onChange={(e) => change(updateClass(classes, selected.id, { childMode: e.target.value === 'all' ? 'all' : undefined }))}
             >
-              <option value="">Eerste die past (een element in één onderliggende klas)</option>
-              <option value="all">Elk op alles (een element kan in meer onderliggende klassen)</option>
+              <option value="">Eerste die past (een element in één onderliggende classificatie)</option>
+              <option value="all">Elk op alles (een element kan in meer onderliggende classificaties)</option>
             </select>
           </label>
           <div className="text-xs font-medium text-muted-foreground">Regels</div>
           {selected.groups.length === 0 ? (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">
-                Geen regels: deze klas neemt alles wat de klassen erboven niet namen{findParentHint(classes, selected.id)}.
+                Geen regels: deze classificatie neemt alles wat de classificaties erboven niet namen{findParentHint(classes, selected.id)}.
               </p>
               <Button type="button" size="sm" variant="outline" onClick={() => change(updateClass(classes, selected.id, { groups: [emptyFilterGroup()] }))}>
                 Regels toevoegen
@@ -181,7 +181,7 @@ export function BimpeilClassRulesEditor() {
             <>
               <FilterGroupEditor groups={selected.groups} activeGroup={activeGroup} onChange={changeGroups} models={modelOptions} allowedKinds={CLASS_RULE_KINDS} />
               <button type="button" className="text-xs underline text-muted-foreground" onClick={() => change(updateClass(classes, selected.id, { groups: [] }))}>
-                Alle regels weghalen (de klas neemt dan alles wat over is)
+                Alle regels weghalen (de classificatie neemt dan alles wat over is)
               </button>
             </>
           )}

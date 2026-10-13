@@ -200,3 +200,19 @@ test('elk op alles met verdelingen: klassen zonder regels nemen alles, daaronder
   assert.deepEqual(ids(r.own, 'wanden'), [], 'elke wand zit in een verdeling');
   assert.deepEqual(r.unclassified.get('m1'), [5]);
 });
+
+test('regeltabel van BIMpeil: kolommen en cellen blijven bij lezen en opslaan staan', () => {
+  const raw = {
+    schema: 1,
+    columns: [{ id: 'ifc', kind: 'ifcType' }],
+    classes: [{ id: 'w', name: 'Wanden', color: '#000000', groups: [type('IfcWall')], cells: { ifc: 'IfcWall' }, columns: [{ id: 'mat', kind: 'material' }] }],
+  };
+  const def = parseDefinition(raw)!;
+  assert.deepEqual(def.columns, raw.columns);
+  assert.deepEqual(def.classes[0].cells, { ifc: 'IfcWall' });
+  assert.deepEqual(def.classes[0].columns, [{ id: 'mat', kind: 'material' }]);
+  const saved = forSave(def);
+  assert.ok('definition' in saved);
+  assert.deepEqual(saved.definition.columns, raw.columns);
+  assert.deepEqual(saved.definition.classes[0].cells, { ifc: 'IfcWall' });
+});

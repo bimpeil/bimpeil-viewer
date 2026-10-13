@@ -11,7 +11,7 @@ export const bimpeilEn = {
   'bimpeil.hierarchy.ils.title': 'BIM basis ILS',
   // Classificatieregels (classRulesStore.ts, classRulesTree.ts)
   'bimpeil.classRules.title': 'Classificatieregels',
-  'bimpeil.hierarchy.klassen.tab': 'Klassen',
-  'bimpeil.hierarchy.klassen.tooltip': 'Per klas van de gekozen classificatieregels',
+  'bimpeil.hierarchy.klassen.tab': 'Classificaties',
+  'bimpeil.hierarchy.klassen.tooltip': 'Per classificatie van de gekozen classificatieregels',
   'bimpeil.hierarchy.klassen.title': 'Classificatieregels',
 } as const;

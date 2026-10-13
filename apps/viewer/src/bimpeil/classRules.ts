@@ -28,11 +28,19 @@ export interface RuleClass {
   children?: RuleClass[];
   /** Onderliggende klassen (K4c): zonder dit veld wint de eerste die past; met 'all' rekent elke op alles van deze klas */
   childMode?: 'all';
+  /**
+   * Regeltabel van BIMpeil (K4d): kolommen van de tabel eronder en de getypte tekst per kolom. De viewer rekent er niet
+   * mee (de regels in `groups` zijn de waarheid), maar laat ze staan zodat opslaan hier ze niet weggooit.
+   */
+  columns?: unknown[];
+  cells?: Record<string, string>;
 }
 
 export interface ClassRulesDefinition {
   schema: 1;
   classes: RuleClass[];
+  /** Regeltabel van BIMpeil (K4d): kolommen op het hoogste niveau, alleen doorgegeven */
+  columns?: unknown[];
 }
 
 /** Een set in de lijst van het project */
@@ -156,12 +164,14 @@ export function parseDefinition(raw: unknown): ClassRulesDefinition | null {
         groups: item.groups as FilterGroup[],
         ...(children.length ? { children } : {}),
         ...(item.childMode === 'all' ? { childMode: 'all' as const } : {}),
+        ...(Array.isArray(item.columns) ? { columns: item.columns } : {}),
+        ...(isObject(item.cells) ? { cells: item.cells as Record<string, string> } : {}),
       });
     }
     return out;
   };
   const classes = walk(raw.classes);
-  return classes ? { schema: 1, classes } : null;
+  return classes ? { schema: 1, classes, ...(Array.isArray(raw.columns) ? { columns: raw.columns } : {}) } : null;
 }
 
 // --------------------------------------------------------------------------------------------- bewerken (K3)
@@ -286,5 +296,5 @@ export function forSave(definition: ClassRulesDefinition): { definition: ClassRu
       return out;
     });
   const classes = clean(definition.classes);
-  return error ? { error } : { definition: { schema: 1, classes } };
+  return error ? { error } : { definition: { schema: 1, classes, ...(definition.columns ? { columns: definition.columns } : {}) } };
 }

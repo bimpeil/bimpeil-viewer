@@ -15,7 +15,7 @@ import type { RuleClass } from './classRules';
 import { activeClasses, useClassRules, type ClassMember, type ClassResult } from './classRulesStore';
 
 export const UNCLASSIFIED_LABEL = '(niet geclassificeerd)';
-export const OWN_LABEL = '(in de klas zelf)';
+export const OWN_LABEL = '(in de classificatie zelf)';
 
 const asMember = (m: ClassMember): Member => ({ ...m, name: '', ifcType: '' });
 
@@ -55,8 +55,8 @@ const hint = (name: string): TreeNode => ({
 
 export function buildClassRulesTree(state: { classes: RuleClass[] | null; result: ClassResult | null; computing: boolean }): TreeNode[] {
   if (!state.classes) return [hint('Kies classificatieregels in het paneel Classificatieregels')];
-  if (!state.result) return [hint(state.computing ? 'Klassen worden uitgerekend…' : 'Open een model om de klassen te zien')];
-  if (state.classes.length === 0) return [hint('Deze classificatieregels hebben nog geen klassen')];
+  if (!state.result) return [hint(state.computing ? 'Classificaties worden uitgerekend…' : 'Open een model om de classificaties te zien')];
+  if (state.classes.length === 0) return [hint('Deze classificatieregels hebben nog geen classificaties')];
   return asNodes(classBuckets(state.classes, state.result), 0, 'klassen');
 }
 

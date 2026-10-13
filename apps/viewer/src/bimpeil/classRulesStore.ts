@@ -313,7 +313,8 @@ export function startEditing(): void {
 
 /** De klassen in het concept vervangen (elke bewerking geeft een nieuwe boom) */
 export function setDraftClasses(classes: RuleClass[]): void {
-  useClassRules.setState({ draft: { schema: 1, classes }, dirty: true, saveError: null });
+  const columns = useClassRules.getState().draft?.columns;
+  useClassRules.setState({ draft: { schema: 1, classes, ...(columns ? { columns } : {}) }, dirty: true, saveError: null });
 }
 
 /** Stoppen zonder op te slaan: het concept gaat weg */

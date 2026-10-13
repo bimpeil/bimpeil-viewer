@@ -106,11 +106,11 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
 
       {project && (
         <div className="space-y-2 border-b p-3">
-          <label className="block text-xs font-medium text-muted-foreground" htmlFor="bimpeil-klassen-set">
+          <label className="block text-xs font-medium text-muted-foreground" htmlFor="bimpeil-classificaties-set">
             Set van {project.code}
           </label>
           <select
-            id="bimpeil-klassen-set"
+            id="bimpeil-classificaties-set"
             className="h-8 w-full rounded-md border bg-background px-2 text-sm"
             value={loaded?.id ?? ''}
             disabled={sets === null || loading || !!draft}
@@ -142,20 +142,20 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
                 </p>
               )}
               <div className="flex items-center gap-2">
-                <Switch id="bimpeil-klassen-kleuren" checked={colorsOn} disabled={!result} onCheckedChange={showClassColors} />
-                <label htmlFor="bimpeil-klassen-kleuren" className="flex-1 text-sm">
-                  Kleuren per klas
+                <Switch id="bimpeil-classificaties-kleuren" checked={colorsOn} disabled={!result} onCheckedChange={showClassColors} />
+                <label htmlFor="bimpeil-classificaties-kleuren" className="flex-1 text-sm">
+                  Kleuren per classificatie
                 </label>
                 <Button type="button" size="sm" variant="outline" onClick={openTree}>
                   <ListTree className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                  Boom per klas
+                  Boom per classificatie
                 </Button>
               </div>
               {scopes.length > 0 && (
-                <label className="flex items-center gap-2 text-xs text-muted-foreground" htmlFor="bimpeil-klassen-kleuren-op">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground" htmlFor="bimpeil-classificaties-kleuren-op">
                   Kleuren op
                   <select
-                    id="bimpeil-klassen-kleuren-op"
+                    id="bimpeil-classificaties-kleuren-op"
                     className="h-7 flex-1 rounded-md border bg-background px-2 text-sm text-foreground"
                     value={colorScope ?? ''}
                     onChange={(e) => setColorScope(e.target.value || null)}
@@ -187,9 +187,9 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
 
       {draft && <BimpeilClassRulesEditor />}
 
-      {!draft && loaded && computing && !result && <p className="p-3 text-sm text-muted-foreground">Klassen worden uitgerekend…</p>}
-      {!draft && loaded && !computing && !result && !error && <p className="p-3 text-sm text-muted-foreground">Open een model om te zien wat er in elke klas valt.</p>}
-      {!draft && loaded && result && rows.length === 0 && <p className="p-3 text-sm text-muted-foreground">Deze classificatieregels hebben nog geen klassen.</p>}
+      {!draft && loaded && computing && !result && <p className="p-3 text-sm text-muted-foreground">Classificaties worden uitgerekend…</p>}
+      {!draft && loaded && !computing && !result && !error && <p className="p-3 text-sm text-muted-foreground">Open een model om te zien wat er in elke classificatie valt.</p>}
+      {!draft && loaded && result && rows.length === 0 && <p className="p-3 text-sm text-muted-foreground">Deze classificatieregels hebben nog geen classificaties.</p>}
 
       {!draft && rows.length > 0 && (
         <ol className="min-h-0 flex-1 overflow-y-auto py-1" aria-busy={computing}>
@@ -231,7 +231,7 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nieuwe classificatieregels</DialogTitle>
-            <DialogDescription>Een lege set in {project?.code}; daarna voeg je de klassen toe.</DialogDescription>
+            <DialogDescription>Een lege set in {project?.code}; daarna voeg je de classificaties toe.</DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); void create(); }} className="space-y-2">
             <label className="block text-sm">
