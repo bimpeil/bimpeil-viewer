@@ -24,6 +24,7 @@ import {
   chooseClassRuleSet,
   createClassRuleSet,
   loadClassRuleSets,
+  setColorScope,
   showClassColors,
   startEditing,
   useClassRules,
@@ -35,7 +36,7 @@ const GREY = '#9ca3af';
 
 export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
   const project = useBimpeilContext((s) => s.project);
-  const { sets, canEdit, listError, loaded, loading, computing, result, error, draft } = useClassRules();
+  const { sets, canEdit, listError, loaded, loading, computing, result, error, draft, colorScope } = useClassRules();
   const [newName, setNewName] = useState<string | null>(null);
   const [newError, setNewError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -51,13 +52,16 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
       name: cls.name,
       code: cls.code,
       color: cls.color,
+      all: cls.childMode === 'all',
       depth,
       members: result.all.get(cls.id) ?? [],
     }));
-    if (result.unclassified.length) list.push({ key: 'niet', name: UNCLASSIFIED_LABEL, code: undefined, color: GREY, depth: 0, members: result.unclassified });
+    if (result.unclassified.length) list.push({ key: 'niet', name: UNCLASSIFIED_LABEL, code: undefined, color: GREY, all: false, depth: 0, members: result.unclassified });
     return list;
   }, [loaded, draft, result]);
 
+  // Kleuren op (K4c): klassen met onderliggende klassen, zoals een verdeling onder een klas op elk op alles
+  const scopes = useMemo(() => flattenClasses(activeClasses({ loaded, draft }) ?? []).filter(({ cls }) => (cls.children?.length ?? 0) > 0), [loaded, draft]);
   const ids = (members: ClassMember[]) => members.map((m) => m.globalId);
   const allHidden = (members: ClassMember[]) => members.length > 0 && members.every((m) => hiddenEntities.has(m.globalId));
   const isIsolated = (members: ClassMember[]) => !!isolated && isolated.size === members.length && members.every((m) => isolated.has(m.globalId));
@@ -147,6 +151,25 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
                   Boom per klas
                 </Button>
               </div>
+              {scopes.length > 0 && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground" htmlFor="bimpeil-klassen-kleuren-op">
+                  Kleuren op
+                  <select
+                    id="bimpeil-klassen-kleuren-op"
+                    className="h-7 flex-1 rounded-md border bg-background px-2 text-sm text-foreground"
+                    value={colorScope ?? ''}
+                    onChange={(e) => setColorScope(e.target.value || null)}
+                  >
+                    <option value="">Hele set</option>
+                    {scopes.map(({ cls, depth }) => (
+                      <option key={cls.id} value={cls.id}>
+                        {'  '.repeat(depth)}
+                        {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {loaded.canEdit && !draft && (
                 loaded.version === loaded.latestVersion ? (
                   <Button type="button" size="sm" variant="outline" onClick={startEditing}>
@@ -179,6 +202,7 @@ export function BimpeilClassRulesPanel({ onClose }: { onClose?: () => void }) {
                 <span className={`min-w-0 flex-1 truncate text-sm ${hidden ? 'line-through text-muted-foreground' : ''}`} title={row.name}>
                   {row.code ? <span className="mr-1 text-muted-foreground">{row.code}</span> : null}
                   {row.name}
+                  {row.all && <span className="ml-1 text-xs text-muted-foreground">elk op alles</span>}
                 </span>
                 <span className="text-xs tabular-nums text-muted-foreground">{row.members.length}</span>
                 <IconButton

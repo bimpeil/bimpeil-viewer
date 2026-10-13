@@ -29,7 +29,7 @@ export function classBuckets(classes: RuleClass[], result: ClassResult): Bucket[
       return {
         key: cls.id,
         label: cls.name,
-        secondary: cls.code,
+        secondary: [cls.code, cls.childMode === 'all' ? 'elk op alles' : null].filter(Boolean).join(' · ') || undefined,
         members: (result.all.get(cls.id) ?? []).map(asMember),
         ...(children.length ? { children } : {}),
       };

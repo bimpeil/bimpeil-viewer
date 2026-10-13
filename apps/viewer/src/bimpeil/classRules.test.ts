@@ -152,3 +152,51 @@ test('opslaan: lege groepen weg; een klas met alleen lege groepen is nog niet af
   assert.ok('error' in half);
   assert.match(half.error, /Klas "kind" heeft een lege groep/);
 });
+
+// --------------------------------------------------------------------------------------------- elk op alles (K4c)
+
+const ELEMENTS_W: Record<number, { type: string; mat: string; loadBearing?: string }> = {
+  1: { type: 'IfcWall', mat: 'beton', loadBearing: 'true' },
+  2: { type: 'IfcWall', mat: 'beton', loadBearing: 'false' },
+  3: { type: 'IfcWall', mat: 'kzs', loadBearing: 'true' },
+  4: { type: 'IfcWall', mat: 'gips' },
+  5: { type: 'IfcSlab', mat: 'beton', loadBearing: 'true' },
+};
+const allW = (): IdsByModel => new Map([['m1', [1, 2, 3, 4, 5]]]);
+const mat = (value: string): FilterGroup => ({ combinator: 'AND', rules: [{ kind: 'material', op: 'eq', value }] });
+const evalW: EvaluateGroups = async (groups, candidates) => {
+  const hit = (id: number) =>
+    groups.some((g) =>
+      g.rules.every((r) =>
+        r.kind === 'ifcType' ? r.values.includes(ELEMENTS_W[id].type)
+          : r.kind === 'property' ? ELEMENTS_W[id].loadBearing === r.value
+            : r.kind === 'material' ? ELEMENTS_W[id].mat === r.value : false,
+      ),
+    );
+  return new Map([...candidates].map(([m, ids]) => [m, ids.filter(hit)]));
+};
+
+test('elk op alles: elke onderliggende klas op alle elementen van de ouder, de rest blijft in de ouder', async () => {
+  const wanden = { ...cls('wanden', [type('IfcWall')], [cls('beton', [mat('beton')]), cls('dragend', [loadBearing('true')])]), childMode: 'all' as const };
+  const r = await assignClasses([wanden, cls('rest', [])], allW(), evalW);
+  assert.deepEqual(ids(r.own, 'beton'), [1, 2]);
+  assert.deepEqual(ids(r.own, 'dragend'), [1, 3], 'wand 1 staat ook in dragend');
+  assert.deepEqual(ids(r.own, 'wanden'), [4], 'in geen van beide');
+  assert.deepEqual(ids(r.all, 'wanden'), [1, 2, 3, 4]);
+  assert.deepEqual(ids(r.own, 'rest'), [5], 'het hoogste niveau blijft eerste die past');
+});
+
+test('elk op alles met verdelingen: klassen zonder regels nemen alles, daaronder eerste die past met een rest', async () => {
+  const materiaal = cls('materiaal', [], [cls('beton', [mat('beton')]), cls('overig-mat', [])]);
+  const draag = cls('draag', [], [cls('dragend', [loadBearing('true')]), cls('niet-dragend', [])]);
+  const wanden = { ...cls('wanden', [type('IfcWall')], [materiaal, draag]), childMode: 'all' as const };
+  const r = await assignClasses([wanden], allW(), evalW);
+  assert.deepEqual(ids(r.all, 'materiaal'), [1, 2, 3, 4]);
+  assert.deepEqual(ids(r.all, 'draag'), [1, 2, 3, 4]);
+  assert.deepEqual(ids(r.own, 'beton'), [1, 2]);
+  assert.deepEqual(ids(r.own, 'overig-mat'), [3, 4]);
+  assert.deepEqual(ids(r.own, 'dragend'), [1, 3]);
+  assert.deepEqual(ids(r.own, 'niet-dragend'), [2, 4], 'wand 4 zonder LoadBearing valt in de rest');
+  assert.deepEqual(ids(r.own, 'wanden'), [], 'elke wand zit in een verdeling');
+  assert.deepEqual(r.unclassified.get('m1'), [5]);
+});

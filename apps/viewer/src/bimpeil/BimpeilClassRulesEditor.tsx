@@ -156,6 +156,17 @@ export function BimpeilClassRulesEditor() {
               />
             </label>
           </div>
+          <label className="block text-xs">
+            Onderliggende klassen
+            <select
+              className={field}
+              value={selected.childMode ?? ''}
+              onChange={(e) => change(updateClass(classes, selected.id, { childMode: e.target.value === 'all' ? 'all' : undefined }))}
+            >
+              <option value="">Eerste die past (een element in één onderliggende klas)</option>
+              <option value="all">Elk op alles (een element kan in meer onderliggende klassen)</option>
+            </select>
+          </label>
           <div className="text-xs font-medium text-muted-foreground">Regels</div>
           {selected.groups.length === 0 ? (
             <div className="space-y-1">

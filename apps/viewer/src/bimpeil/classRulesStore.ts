@@ -24,6 +24,7 @@ import { isProductTreeClass } from '@/components/viewer/hierarchy/productTreeCla
 import { useBimpeilContext } from './context';
 import {
   assignClasses,
+  findClass,
   flattenClasses,
   forSave,
   parseDefinition,
@@ -66,6 +67,8 @@ interface State {
   error: string | null;
   /** De lens voor useLens, met de treffers per regel (klas) */
   lens: { lens: Lens; matched: Map<string, Set<number>> } | null;
+  /** Kleuren op (K4c): null is de hele set, anders alleen deze klas met wat eronder staat (de rest grijs) */
+  colorScope: string | null;
   /** Bewerken (K3): het concept; rekenen, kleuren en de boom volgen het concept zolang het er is */
   draft: ClassRulesDefinition | null;
   dirty: boolean;
@@ -84,6 +87,7 @@ export const useClassRules = create<State>(() => ({
   result: null,
   error: null,
   lens: null,
+  colorScope: null,
   draft: null,
   dirty: false,
   saving: false,
@@ -149,7 +153,7 @@ export async function chooseClassRuleSet(setId: string | null, version?: number)
     useClassRules.setState({ loaded: null, result: null, lens: null, error: null, draft: null, dirty: false, saveError: null });
     return;
   }
-  useClassRules.setState({ loading: true, error: null, draft: null, dirty: false, saveError: null });
+  useClassRules.setState({ loading: true, error: null, draft: null, dirty: false, saveError: null, colorScope: null });
   try {
     const d = await json<Omit<LoadedClassRuleSet, 'definition'> & { definition: unknown }>(
       `/api/projects/${projectId}/class-rules/${setId}${version ? `?versie=${version}` : ''}`,
@@ -231,21 +235,38 @@ export async function computeClassRules(): Promise<void> {
       [...ids].flatMap(([modelId, list]) => list.map((expressId) => ({ modelId, expressId, globalId: toGlobalIdFromModels(models, modelId, expressId) })));
     const own = new Map([...assignment.own].map(([id, ids]) => [id, members(ids)]));
     const all = new Map([...assignment.all].map(([id, ids]) => [id, members(ids)]));
-    const flat = flattenClasses(classes);
-    // Eén regel per klas; de treffers zijn de elementen in de klas zelf, dus nooit twee regels voor één element
-    const lens: Lens = {
-      id: CLASS_RULES_LENS_ID,
-      name: `Classificatieregels: ${loaded.name}`,
-      rules: flat.map(({ cls }) => ({ id: cls.id, name: cls.name, enabled: true, groups: [], action: 'colorize' as const, color: cls.color })),
-    };
-    const matched = new Map(flat.map(({ cls }) => [cls.id, new Set((own.get(cls.id) ?? []).map((m) => m.globalId))]));
-    useClassRules.setState({ result: { own, all, unclassified: members(assignment.unclassified) }, lens: { lens, matched }, computing: false });
+    const result: ClassResult = { own, all, unclassified: members(assignment.unclassified) };
+    useClassRules.setState({ result, lens: lensFor(classes, result, loaded.name, useClassRules.getState().colorScope), computing: false });
   } catch (e) {
     if (controller.signal.aborted) return;
     useClassRules.setState({ computing: false, result: null, lens: null, error: `De regels konden niet worden uitgerekend: ${message(e)}` });
   } finally {
     if (running === controller) running = null;
   }
+}
+
+/**
+ * De lens: één regel per klas met de elementen in de klas zelf, in boomvolgorde; de eerste regel wint (onder een klas op
+ * elk op alles kan een element in meer klassen staan, dan telt de bovenste). Met `scope` alleen die klas en wat eronder
+ * staat, zodat bij verdelingen elk element één kleur krijgt en de rest grijs is.
+ */
+function lensFor(classes: RuleClass[], result: ClassResult, setName: string, scope: string | null): State['lens'] {
+  const root = scope ? findClass(classes, scope) : null;
+  const flat = flattenClasses(root ? [root] : classes);
+  const lens: Lens = {
+    id: CLASS_RULES_LENS_ID,
+    name: `Classificatieregels: ${setName}${root ? `, ${root.name}` : ''}`,
+    rules: flat.map(({ cls }) => ({ id: cls.id, name: cls.name, enabled: true, groups: [], action: 'colorize' as const, color: cls.color })),
+  };
+  const matched = new Map(flat.map(({ cls }) => [cls.id, new Set((result.own.get(cls.id) ?? []).map((m) => m.globalId))]));
+  return { lens, matched };
+}
+
+/** Kleuren op een klas met wat eronder staat, of op de hele set (null) */
+export function setColorScope(scope: string | null): void {
+  const s = useClassRules.getState();
+  const classes = activeClasses(s);
+  useClassRules.setState({ colorScope: scope, lens: classes && s.result && s.loaded ? lensFor(classes, s.result, s.loaded.name, scope) : s.lens });
 }
 
 /** Voor useLens: de lens van de klassen en de treffers, als die er is */
@@ -270,7 +291,7 @@ export function useBimpeilClassRulesSync(): void {
     if (useClassRules.getState().projectId === projectId) return;
     running?.abort();
     showClassColors(false);
-    useClassRules.setState({ projectId, sets: null, canEdit: false, listError: null, loaded: null, result: null, lens: null, error: null, computing: false, draft: null, dirty: false, saveError: null });
+    useClassRules.setState({ projectId, sets: null, canEdit: false, listError: null, loaded: null, result: null, lens: null, error: null, computing: false, draft: null, dirty: false, saveError: null, colorScope: null });
     if (projectId) void loadClassRuleSets(projectId);
   }, [project]);
 

@@ -9,7 +9,9 @@
  *
  * Toewijzing, zoals een classificatie in Solibri: de klassen op volgorde; een element komt in de eerste klas waarvan de
  * regels passen en probeert daarna de kinderen van die klas; past geen kind, dan blijft het in de klas zelf. Een klas
- * zonder regels past op alles wat de ouder doorlaat. Zo heeft elk element binnen een set hooguit één klas.
+ * zonder regels past op alles wat de ouder doorlaat. Zo heeft elk element binnen een set hooguit één klas, behalve onder
+ * een klas op "elk op alles" (`childMode: 'all'`, K4c): daar rekent elke onderliggende klas op alle elementen van die
+ * klas en kan een element in meer ervan staan.
  *
  * Deze module is zonder store en zonder React (te testen met een eigen `evaluate`); de store en het rekenen op de
  * geladen modellen staan in classRulesStore.ts.
@@ -24,6 +26,8 @@ export interface RuleClass {
   color: string;
   groups: FilterGroup[];
   children?: RuleClass[];
+  /** Onderliggende klassen (K4c): zonder dit veld wint de eerste die past; met 'all' rekent elke op alles van deze klas */
+  childMode?: 'all';
 }
 
 export interface ClassRulesDefinition {
@@ -79,6 +83,16 @@ function without(a: IdsByModel, b: IdsByModel): IdsByModel {
   return out;
 }
 
+/** Alles uit `a` en `b` samen */
+function union(a: IdsByModel, b: IdsByModel): IdsByModel {
+  const out: IdsByModel = new Map([...a].map(([m, l]) => [m, [...l]]));
+  for (const [modelId, list] of b) {
+    const have = new Set(out.get(modelId) ?? []);
+    out.set(modelId, [...(out.get(modelId) ?? []), ...list.filter((id) => !have.has(id))]);
+  }
+  return out;
+}
+
 /** Alleen wat ook in `scope` staat (de evaluator mag nooit buiten de kandidaten treffen, maar zeker is zeker) */
 function within(found: IdsByModel, scope: IdsByModel): IdsByModel {
   const out: IdsByModel = new Map();
@@ -97,18 +111,23 @@ function within(found: IdsByModel, scope: IdsByModel): IdsByModel {
 export async function assignClasses(classes: RuleClass[], candidates: IdsByModel, evaluate: EvaluateGroups, signal?: AbortSignal): Promise<Assignment> {
   const own = new Map<string, IdsByModel>();
   const all = new Map<string, IdsByModel>();
-  const walk = async (list: RuleClass[], pool: IdsByModel): Promise<IdsByModel> => {
+  // `overlap`: de klassen in `list` rekenen elk op de hele `pool` (de ouder staat op elk op alles); anders eerste die past
+  const walk = async (list: RuleClass[], pool: IdsByModel, overlap: boolean): Promise<IdsByModel> => {
     let remaining = pool;
+    let taken: IdsByModel = new Map();
     for (const cls of list) {
       if (signal?.aborted) throw new DOMException('Classificatieregels afgebroken', 'AbortError');
-      const matched = count(remaining) === 0 ? new Map() : cls.groups.length === 0 ? remaining : within(await evaluate(cls.groups, remaining), remaining);
-      remaining = without(remaining, matched);
+      const from = overlap ? pool : remaining;
+      const matched = count(from) === 0 ? new Map() : cls.groups.length === 0 ? from : within(await evaluate(cls.groups, from), from);
+      if (overlap) taken = union(taken, matched);
+      else remaining = without(remaining, matched);
       all.set(cls.id, matched);
-      own.set(cls.id, cls.children?.length ? await walk(cls.children, matched) : matched);
+      own.set(cls.id, cls.children?.length ? await walk(cls.children, matched, cls.childMode === 'all') : matched);
     }
-    return remaining;
+    // Wat in geen van deze klassen viel, blijft bij de ouder
+    return overlap ? without(pool, taken) : remaining;
   };
-  const unclassified = await walk(classes, candidates);
+  const unclassified = await walk(classes, candidates, false);
   return { own, all, unclassified };
 }
 
@@ -136,6 +155,7 @@ export function parseDefinition(raw: unknown): ClassRulesDefinition | null {
         color: item.color,
         groups: item.groups as FilterGroup[],
         ...(children.length ? { children } : {}),
+        ...(item.childMode === 'all' ? { childMode: 'all' as const } : {}),
       });
     }
     return out;
