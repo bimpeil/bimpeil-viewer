@@ -5,18 +5,17 @@
 /** BIMpeil: vaste gevallen voor de lijsten van IDS uit BIMpeil (BimpeilIdsSource.tsx). */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { idsFilesOf, usableTemplates } from './BimpeilIdsSource';
+import { projectIdsOf, usableTemplates } from './BimpeilIdsSource';
 
-test('IDS bestanden: alleen .ids met een versie, de nieuwste, op naam', () => {
-  const files = [
-    { id: 'a', name: 'PRJ-VDM-ZZ-XX-SP-H-0002.ids', versions: [{ id: 'v2', isoStatus: 'Published', suitability: 'A', revision: 'A1' }, { id: 'v1', isoStatus: 'Shared', suitability: 'TA', revision: 'V01' }] },
-    { id: 'b', name: 'model.ifc', versions: [{ id: 'm', isoStatus: 'WIP', suitability: 'S0', revision: null }] },
-    { id: 'c', name: 'Basis.IDS', versions: [{ id: 'c1', isoStatus: 'WIP', suitability: 'S0', revision: null }] },
-    { id: 'd', name: 'leeg.ids', versions: [] },
+test('IDS van het project: alleen met een vaste versie, de laatste, op naam', () => {
+  const list = [
+    { id: 'a', name: 'Eisen constructie', fixed: { version: 3, header: { ifcVersions: ['IFC4', 'IFC4X3_ADD2'] } } },
+    { id: 'b', name: 'Alleen een concept', fixed: null },
+    { id: 'c', name: 'Basis', fixed: { version: 1, header: null } },
   ];
-  assert.deepEqual(idsFilesOf(files), [
-    { fileId: 'c', versionId: 'c1', name: 'Basis.IDS', status: 'WIP, S0' },
-    { fileId: 'a', versionId: 'v2', name: 'PRJ-VDM-ZZ-XX-SP-H-0002.ids', status: 'Gepubliceerd, A A1' },
+  assert.deepEqual(projectIdsOf(list), [
+    { idsId: 'c', version: 1, name: 'Basis', sub: 'versie 1' },
+    { idsId: 'a', version: 3, name: 'Eisen constructie', sub: 'versie 3, IFC4, IFC4X3_ADD2' },
   ]);
 });
 

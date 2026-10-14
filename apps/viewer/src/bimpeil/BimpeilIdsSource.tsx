@@ -4,10 +4,10 @@
 
 /**
  * BIMpeil: IDS uit BIMpeil in het paneel Validatie (11 oktober 2026, besluiten punt 28, stap M1 van het plan voor
- * modelcontrole). Twee lijsten van het actieve project: de IDS bestanden in Bestanden (de nieuwste versie die je mag
- * zien, de WIP regel geldt in de API) en de IDS sjablonen die de organisatie van het project in haar bibliotheek heeft.
- * Een klik haalt een ondertekende URL op dezelfde origin, leest de IDS en laadt hem met loadIdsContent van IfcLite;
- * controleren gaat daarna zoals altijd. Een projectbestand opent met `?doel=ids`, zodat het audit log "geopend" toont.
+ * modelcontrole). Twee lijsten van het actieve project: de IDS van het project (14 oktober 2026, besluiten punt 56:
+ * een eigen onderdeel van het project, geen bestand in Bestanden; alleen de laatste vaste versie, nooit een concept) en
+ * de IDS sjablonen die de organisatie van het project in haar bibliotheek heeft. Een klik haalt een ondertekende URL op
+ * dezelfde origin, leest de IDS en laadt hem met loadIdsContent van IfcLite; controleren gaat daarna zoals altijd.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -19,17 +19,11 @@ import { useViewerStore } from '@/store';
 import { useBimpeilContext } from './context';
 import { BIMPEIL_IDS_PREFIX } from './idsOnly';
 
-interface FileVersion {
-  id: string;
-  isoStatus: string;
-  suitability: string;
-  revision: string | null;
-}
-
-interface ProjectFile {
+/** Een IDS van het project zoals GET /api/projects/:id/ids hem geeft */
+interface ProjectIdsItem {
   id: string;
   name: string;
-  versions: FileVersion[];
+  fixed: { version: number; header: { ifcVersions?: string[] } | null } | null;
 }
 
 interface Template {
@@ -40,31 +34,26 @@ interface Template {
   idsHeader?: { ifcVersions?: string[] } | null;
 }
 
-export interface IdsFile {
-  fileId: string;
-  versionId: string;
+export interface ProjectIds {
+  idsId: string;
+  version: number;
   name: string;
-  status: string;
+  sub: string;
 }
 
 // Een IDS alleen uit BIMpeil: de vlag en de controle staan in idsOnly.ts (ook voor Flow)
 export { BIMPEIL_IDS_ONLY } from './idsOnly';
 
-const STATUS: Record<string, string> = { WIP: 'WIP', Shared: 'Gedeeld', Published: 'Gepubliceerd', Archived: 'Gearchiveerd' };
-
-/** De IDS bestanden van het project: naam op .ids, de nieuwste versie die de API teruggeeft, op naam */
-export function idsFilesOf(files: ProjectFile[]): IdsFile[] {
-  return files
-    .filter((f) => f.name.toLowerCase().endsWith('.ids') && f.versions.length > 0)
-    .map((f) => {
-      const v = f.versions[0];
-      return {
-        fileId: f.id,
-        versionId: v.id,
-        name: f.name,
-        status: [STATUS[v.isoStatus] ?? v.isoStatus, [v.suitability, v.revision].filter(Boolean).join(' ')].filter(Boolean).join(', '),
-      };
-    })
+/** De IDS van het project met een vaste versie (een concept laadt de viewer nooit), op naam */
+export function projectIdsOf(list: ProjectIdsItem[]): ProjectIds[] {
+  return list
+    .filter((i) => i.fixed)
+    .map((i) => ({
+      idsId: i.id,
+      version: i.fixed!.version,
+      name: i.name,
+      sub: [`versie ${i.fixed!.version}`, i.fixed!.header?.ifcVersions?.join(', ')].filter(Boolean).join(', '),
+    }))
     .sort((a, b) => a.name.localeCompare(b.name, 'nl'));
 }
 
@@ -86,7 +75,7 @@ async function json<T>(path: string): Promise<T> {
  */
 export function BimpeilIdsSource({ onLoaded, compact = false }: { onLoaded?: (xml: string, name: string) => void; compact?: boolean } = {}) {
   const project = useBimpeilContext((s) => s.project);
-  const [files, setFiles] = useState<IdsFile[] | null>(null);
+  const [files, setFiles] = useState<ProjectIds[] | null>(null);
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -96,8 +85,8 @@ export function BimpeilIdsSource({ onLoaded, compact = false }: { onLoaded?: (xm
     setError(null);
     setFiles(null);
     setTemplates(null);
-    json<{ files: ProjectFile[] }>(`/api/projects/${project.id}/files`)
-      .then((d) => setFiles(idsFilesOf(d.files)))
+    json<{ ids: ProjectIdsItem[] }>(`/api/projects/${project.id}/ids`)
+      .then((d) => setFiles(projectIdsOf(d.ids)))
       .catch((e: unknown) => {
         setFiles([]);
         setError(e instanceof Error ? e.message : String(e));
@@ -157,13 +146,13 @@ export function BimpeilIdsSource({ onLoaded, compact = false }: { onLoaded?: (xm
         </IconButton>
       </div>
       {error && <p className="mb-1 text-xs text-destructive" role="alert">{error}</p>}
-      <div className="mt-2 text-xs font-medium text-muted-foreground">Bestanden van het project</div>
+      <div className="mt-2 text-xs font-medium text-muted-foreground">IDS van het project</div>
       {files === null ? (
         <p className="py-1 text-xs text-muted-foreground">Laden…</p>
       ) : files.length === 0 ? (
-        <p className="py-1 text-xs text-muted-foreground">Geen IDS bestanden in dit project die je mag zien.</p>
+        <p className="py-1 text-xs text-muted-foreground">Dit project heeft nog geen IDS met een vaste versie.</p>
       ) : (
-        <ul>{files.map((f) => row(`f:${f.versionId}`, f.name, f.status, `/api/projects/${project.id}/files/${f.fileId}/versions/${f.versionId}/download?doel=ids`))}</ul>
+        <ul>{files.map((f) => row(`p:${f.idsId}:${f.version}`, f.name, f.sub, `/api/projects/${project.id}/ids/${f.idsId}/download?versie=${f.version}`))}</ul>
       )}
       <div className="mt-2 text-xs font-medium text-muted-foreground">Sjablonen van de organisatie</div>
       {templates === null ? (
