@@ -15,6 +15,8 @@
 // content change forces a cache miss so the viewer rebuilds fresh now that
 // thin-LTO removes the OOM. Safe to delete once a clean build is cached.
 
+// BIMpeil: Material Symbols meegeleverd, niet van Google (src/bimpeil/fonts.ts)
+import './bimpeil/fonts';
 import { mountViewer } from './bootstrap';
 
 mountViewer(document.getElementById('root')!);

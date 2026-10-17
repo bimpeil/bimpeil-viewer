@@ -13,6 +13,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Package, ShieldCheck, ExternalLink } from 'lucide-react';
 import { useTranslation } from '@/i18n';
+import { BimpeilSourceLink } from '@/bimpeil/SourceLink';
 
 const GITHUB_URL = 'https://github.com/LTplus-AG/ifc-lite';
 
@@ -122,6 +123,8 @@ export function AboutTab() {
           </a>
           <span>{t('keyboardShortcuts.about.license')}</span>
         </div>
+        {/* BIMpeil: broncode van deze viewer (MPL 2.0) */}
+        <BimpeilSourceLink />
       </div>
 
       {/* Package Versions */}

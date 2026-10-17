@@ -341,6 +341,9 @@ importers:
       maplibre-gl:
         specifier: ^6.11.2
         version: 6.11.2
+      material-symbols:
+        specifier: 0.47.6
+        version: 0.47.6
       parquet-wasm:
         specifier: ^0.8.0
         version: 0.8.0
@@ -5344,6 +5347,9 @@ packages:
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
+  material-symbols@0.47.6:
+    resolution: {integrity: sha512-+W09H5h13mk/+xyVAQoZPWCubIQU20QRzNlyc1Bt9gaFqWnO+P6NnexfNH2D2EXvB4kAn8A7BMhEJ8qBCNvRkQ==}
+
   mdast-util-find-and-replace@3.0.2:
     resolution: {integrity: sha512-Tmd1Vg/m3Xz43afeNxDIhWRtFZgM2VLyaf4vSTYwudTyeuTneoL3qtWMA5jeLyz/O1vDJmmV4QuScFCA2tBPwg==}
 
@@ -9782,6 +9788,8 @@ snapshots:
       tinyqueue: 3.0.0
 
   markdown-table@3.0.4: {}
+
+  material-symbols@0.47.6: {}
 
   mdast-util-find-and-replace@3.0.2:
     dependencies:

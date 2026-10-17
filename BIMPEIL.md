@@ -44,6 +44,7 @@ Nieuwe bestanden: `apps/viewer/src/bimpeil/` en de logo's in `apps/viewer/public
 Gewijzigde bestanden van ifc-lite (onder `apps/viewer/src/`):
 
 - `App.tsx`
+- `main.tsx` (import van `src/bimpeil/fonts.ts`: Material Symbols meegeleverd)
 - `components/viewer/KeyboardShortcutsDialog.tsx`, `KeyboardShortcutsDialogTabs.tsx`
 - `components/viewer/MobileToolbar.tsx`, `ViewerLayout.tsx`, `ViewportContainer.tsx`, `ViewportWelcomeCard.tsx`
 - `components/viewer/change-sets/ChangeSetPanel.tsx`
@@ -59,10 +60,12 @@ Gewijzigde bestanden van ifc-lite (onder `apps/viewer/src/`):
 - `lib/panels/registry.ts`, `lib/panels/renderPanelBody.tsx`
 - `store/index.ts`, `store/slices/uiSlice.ts`, `store/slices/uiPreferences.ts`, `store/store-sync.ts`
 
+Buiten `src/`: `apps/viewer/index.html` (geen Google Fonts meer) en `apps/viewer/package.json` met `pnpm-lock.yaml` (`material-symbols`, Apache 2.0).
+
 Nieuwe pagina naast de viewer: `apps/viewer/bimpeil-checker.html` met `src/bimpeil/checker/` (controle met een IDS zonder viewer, voor de pagina Controles van BIMpeil; als invoer toegevoegd in de Vite configuratie van BIMpeil, niet in die van ifc-lite).
 
 Aanpassingen in bestanden van ifc-lite zijn sinds 7 oktober 2026 gemarkeerd met `BIMpeil:`. Overzicht met `git diff --name-status main bimpeil`.
 
 ## Licentie
 
-ifc-lite valt onder MPL 2.0. Gewijzigde ifc-lite bestanden blijven MPL 2.0. Wordt de viewer aan derden geleverd (BIMpeil voor externe gebruikers), dan moet de broncode van de MPL bestanden voor hen beschikbaar zijn. Uiterlijk bij de livegang regelen, bijvoorbeeld door deze repo of de gewijzigde bestanden te publiceren.
+ifc-lite valt onder MPL 2.0. Gewijzigde ifc-lite bestanden blijven MPL 2.0. Wordt de viewer aan derden geleverd (BIMpeil voor externe gebruikers), dan moet de broncode van de MPL bestanden voor hen beschikbaar zijn. Dat gebeurt sinds 17 oktober 2026 via de openbare repo `bimpeil/bimpeil-viewer-bron`: per vastgezette commit de broncode als één commit met een tag `viewer-<commit>` (`pnpm viewer:publiceer` in BIMpeil). Deze fork blijft privé. Het Info venster van de viewer linkt naar die tag (`src/bimpeil/SourceLink.tsx`).

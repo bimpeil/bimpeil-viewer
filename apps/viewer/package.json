@@ -98,6 +98,7 @@
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.48.0",
     "maplibre-gl": "^6.11.2",
+    "material-symbols": "0.47.6",
     "parquet-wasm": "^0.8.0",
     "pdfjs-dist": "6.3.289",
     "postcss": "^8.5.28",
