@@ -18,6 +18,8 @@ import type { ModelLoadOptions } from './modelLoadOptions.js';
 import { assertWorkflowOwner } from '@/lib/flow/run-session';
 import { buildModelLoadedGeometryProps, geometryProcessingStallPhase, reportSkippedHungElements, warnGeometryDiagnostics } from './modelLoadedGeometryProps.js';
 import { planCacheWrite, decideMeshOnlyCacheHit, decideSourceTierCacheHit, decideCacheLoadOutcome } from './cacheTier.js';
+import { withoutBimpeilCache } from '@/bimpeil/cache';
+import { isBimpeilFile } from '@/bimpeil/origin';
 import { buildModelLoadReportPatch, type ModelLoadReportFields } from '../lib/loadReport';
 import { identifyLoadedPlacementSource } from '@/lib/model-placement/loaded-source-identity';
 import { placementSourceIdentity } from '@/lib/model-placement/source-identity';
@@ -1111,12 +1113,13 @@ export function useIfcLoader() {
       // nothing else caches. Gating the READ on `shouldCache` too makes the kill
       // switch complete — with it off, a previously written mesh-only entry is
       // NOT served (and files outside any band skip a pointless lookup).
-      const cachePlan = planCacheWrite(buffer.byteLength, {
+      // BIMpeil: een model uit BIMpeil niet in de browsercache (audit VIEW-001, src/bimpeil/cache.ts)
+      const cachePlan = withoutBimpeilCache(planCacheWrite(buffer.byteLength, {
         meshOnlyEnabled: isMeshOnlyCacheEnabled(),
         minSize: CACHE_SIZE_THRESHOLD,
         maxSourceSize: CACHE_MAX_SOURCE_SIZE,
         maxMeshOnlySize: CACHE_MESH_ONLY_MAX_SIZE,
-      });
+      }), isBimpeilFile(file));
 
       // Cache + server are PRIMARY-ONLY: a federated add is WASM-only with no
       // cache/server round-trip (matches the former parseStepBufferViewerModel).
