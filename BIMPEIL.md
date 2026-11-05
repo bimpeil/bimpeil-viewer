@@ -1,8 +1,8 @@
 # bimpeil-viewer
 
-Deze repo is een privé fork van [LTplus-AG/ifc-lite](https://github.com/LTplus-AG/ifc-lite) (MPL 2.0). De viewer (`apps/viewer`) draait in [BIMpeil](https://github.com/bimpeil/BIMpeil) op `/viewer/`. BIMpeil haalt deze repo op in `apps/viewer/.ifclite` en bouwt hem met `pnpm viewer:build`, op de commit die in `apps/viewer/ifclite.json` staat.
+Deze repo is een openbare fork van [LTplus-AG/ifc-lite](https://github.com/LTplus-AG/ifc-lite) (MPL 2.0). De viewer (`apps/viewer`) draait in [BIMpeil](https://bimpeil.nl) op `/viewer/`. BIMpeil haalt deze repo op in `apps/viewer/.ifclite` en bouwt hem met `pnpm viewer:build`, op de commit die in `apps/viewer/ifclite.json` staat.
 
-De volledige werkwijze (dagelijks werken, weigeringen van `viewer:build`, upgraden, problemen) staat in BIMpeil: [`docs/viewer.md`](https://github.com/bimpeil/BIMpeil/blob/main/docs/viewer.md). Dit bestand is de korte versie voor wie in de fork kijkt; bij verschil geldt `docs/viewer.md`.
+De volledige werkwijze (dagelijks werken, weigeringen van `viewer:build`, upgraden, problemen) staat in `docs/viewer.md` in de privé repo van BIMpeil. Dit bestand is de korte versie voor wie in de fork kijkt; bij verschil geldt `docs/viewer.md`.
 
 ## Branches en remotes
 
@@ -10,7 +10,7 @@ De volledige werkwijze (dagelijks werken, weigeringen van `viewer:build`, upgrad
 |---|---|
 | `main` | Ongewijzigd ifc-lite; alleen bijwerken vanuit `upstream`. |
 | `bimpeil` | Werkbranch met onze wijzigingen. |
-| `origin` | `bimpeil/bimpeil-viewer` (privé) |
+| `origin` | `bimpeil/bimpeil-viewer` (openbaar) |
 | `upstream` | `LTplus-AG/ifc-lite`, alleen ophalen (push staat uit) |
 
 `main` staat op de release van `@ifc-lite/wasm@10.4.0` (tag `v10.4.0`, `a8905535c`, sinds 18 oktober 2026; daarvoor `e79f273`). De gepubliceerde WASM hoort bij die commit, dus Rust is niet nodig. Na een upgrade staat de oude WASM nog in `packages/wasm/pkg` en weigert `build:wasm:fetch`; dan eenmalig `node scripts/fetch-prebuilt-wasm.mjs --force`.
@@ -18,6 +18,8 @@ De volledige werkwijze (dagelijks werken, weigeringen van `viewer:build`, upgrad
 ## Werken aan de viewer
 
 Vanuit BIMpeil: `pnpm dev:web` start de viewer met hot reload. Wijzig code in `apps/viewer/.ifclite`, commit op `bimpeil` en push naar `origin`. Zet daarna in BIMpeil de nieuwe commit vast met `pnpm viewer:pin` en commit `ifclite.json`.
+
+Elke push naar `origin` is meteen openbaar, dus push pas als je gaat vastzetten. Onze eigen commits staan altijd op naam van `BIMpeil <noreply@bimpeil.nl>`: `viewer:build` en `viewer:pin` zetten dat in deze clone, met een `pre-push` controle die een ander adres weigert.
 
 Houd wijzigingen in bestanden van ifc-lite klein: elke wijziging moet bij elke upgrade opnieuw passen. Nieuwe code hoort in `apps/viewer/src/bimpeil/`.
 
@@ -32,6 +34,8 @@ git push origin main
 git checkout bimpeil && git merge main     # geen rebase, dan is een force push nooit nodig
 git push origin bimpeil
 ```
+
+Komt `.github/dependabot.yml` bij de merge terug, haal hem dan weg met `git rm`; de `pre-push` controle weigert hem op `bimpeil`, omdat Dependabot anders pull requests opent.
 
 Daarna in BIMpeil: `pnpm viewer:build`, de testset draaien, `pnpm viewer:pin`, caches opnieuw opbouwen.
 
@@ -63,7 +67,7 @@ Gewijzigde bestanden van ifc-lite (onder `apps/viewer/src/`):
 - `lib/panels/registry.ts`, `lib/panels/renderPanelBody.tsx`
 - `store/index.ts`, `store/slices/uiSlice.ts`, `store/slices/uiPreferences.ts`, `store/store-sync.ts`
 
-Buiten `src/`: `apps/viewer/index.html` (geen Google Fonts meer) en `apps/viewer/package.json` met `pnpm-lock.yaml` (`material-symbols`, Apache 2.0).
+Buiten `src/`: `apps/viewer/index.html` (geen Google Fonts meer) en `apps/viewer/package.json` met `pnpm-lock.yaml` (`material-symbols`, Apache 2.0). Ook nieuw: `BRON.md` (wat deze repo is). Weg: `.github/dependabot.yml`. De workflows in `.github` staan er nog, maar draaien niet: Actions staan uit in deze repo.
 
 Nieuwe pagina naast de viewer: `apps/viewer/bimpeil-checker.html` met `src/bimpeil/checker/` (controle met een IDS zonder viewer, voor de pagina Controles van BIMpeil; als invoer toegevoegd in de Vite configuratie van BIMpeil, niet in die van ifc-lite).
 
@@ -73,4 +77,4 @@ Aanpassingen in bestanden van ifc-lite zijn sinds 7 oktober 2026 gemarkeerd met 
 
 ## Licentie
 
-ifc-lite valt onder MPL 2.0. Gewijzigde ifc-lite bestanden blijven MPL 2.0. Wordt de viewer aan derden geleverd (BIMpeil voor externe gebruikers), dan moet de broncode van de MPL bestanden voor hen beschikbaar zijn. Dat gebeurt sinds 17 oktober 2026 via de openbare repo `bimpeil/bimpeil-viewer-bron`: per vastgezette commit de broncode als één commit met een tag `viewer-<commit>` (`pnpm viewer:publiceer` in BIMpeil). Deze fork blijft privé. Het Info venster van de viewer linkt naar die tag (`src/bimpeil/SourceLink.tsx`).
+ifc-lite valt onder MPL 2.0. Gewijzigde ifc-lite bestanden blijven MPL 2.0. Wordt de viewer aan derden geleverd (BIMpeil voor externe gebruikers), dan moet de broncode van de MPL bestanden voor hen beschikbaar zijn. Daarom is deze repo openbaar, en krijgt elke versie die BIMpeil levert een tag `viewer-<commit>` (`pnpm viewer:publish` in BIMpeil). Het Info venster van de viewer linkt naar die tag (`src/bimpeil/SourceLink.tsx`).
