@@ -1,0 +1,17 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+/* BIMpeil: the bare viewer for positioning. The empty state of IfcLite (with its own Open buttons) is not shown: the
+   page around the viewer says what to do. The background is Paper, as on the page. */
+.bimpeil-position [data-tour='empty-state-card'] {
+  display: none !important;
+}
+.bimpeil-position [data-viewport] {
+  background: #f2f1ee !important;
+}
+/* The view cube and the small basepoint toggle of IfcLite (English, no label): the page has View and Origins */
+.bimpeil-position [data-tour='viewcube'],
+.bimpeil-position [data-testid='viewport-axis-helper'] ~ button {
+  display: none !important;
+}
