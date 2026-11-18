@@ -16,6 +16,7 @@ import { useViewerStore } from '@/store';
 import { MeasureLayer } from './MeasureLayer';
 import { measureState, subscribeMeasure } from './measure-scene';
 import { OriginMarkers } from './OriginMarkers';
+import { keepSurfaceZoom } from './surface-zoom';
 import { usePositionBridge } from './usePositionBridge';
 
 export function PositionLayout() {
@@ -27,6 +28,8 @@ export function PositionLayout() {
   const picking = useSyncExternalStore(subscribeMeasure, () => measureState().picking !== null);
   // Light, like the page around it
   useEffect(() => useViewerStore.getState().setTheme('light'), []);
+  // Zooming in stops short of what is under the cursor, also in a large scene (surface-zoom.ts)
+  useEffect(() => keepSurfaceZoom(), []);
   return (
     <div className="bimpeil-position" data-picking={picking ? '' : undefined} style={{ position: 'fixed', inset: 0 }}>
       <ViewportContainer />
