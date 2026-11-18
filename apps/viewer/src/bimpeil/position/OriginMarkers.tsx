@@ -6,7 +6,7 @@
  * BIMpeil: a marker with the name of the file at the origin of every model, while the page shows the origins
  * (origin-scene.ts). In the style of the page (position.css): a ring in Graphite, filled for the model that moves.
  * The markers move with the model, also while it is dragged. Models that share their origin, the usual case before
- * aligning, get one ring each on the same spot and their names under each other.
+ * aligning, get one ring each on the same spot and their names above each other.
  *
  * Drawn on top of the 3D view with the projection of IfcLite, once per frame and only while shown: a few points, set
  * straight on the elements, without React in between.
@@ -53,7 +53,7 @@ export function OriginMarkers() {
         }
         marker.style.display = '';
         marker.style.transform = `translate(${screen.x}px, ${screen.y}px)`;
-        // Names of markers on (almost) the same spot under each other
+        // Names of markers on (almost) the same spot above each other
         const stack = placed.filter((p) => Math.abs(p.x - screen.x) < 6 && Math.abs(p.y - screen.y) < 6).length;
         marker.style.setProperty('--stack', String(stack));
         placed.push(screen);

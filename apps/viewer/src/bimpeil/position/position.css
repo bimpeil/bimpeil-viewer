@@ -59,7 +59,8 @@
 .bimpeil-position .bimpeil-origin .name {
   position: absolute;
   left: 12px;
-  top: calc(-30px + var(--stack, 0) * 24px);
+  /* Names on the same spot stack upwards, away from the handles at the origin */
+  top: calc(-30px - var(--stack, 0) * 24px);
   white-space: nowrap;
   font-family: 'Inter Variable', Inter, system-ui, sans-serif;
   font-size: 12px;
