@@ -6,13 +6,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { emptyPlacementState, type PlacementState } from '@/lib/model-placement/state';
-import { positionSession } from './session';
+import { NO_MEASURE, positionSession } from './session';
 
 const still = { translation: [0, 0, 0] as const, rotation: { angle: 0, pivot: [0, 0, 0] as const }, locked: false };
 
 test('closed: nothing moves, nothing is picked', () => {
   const s = positionSession(false, emptyPlacementState(), null);
-  assert.deepEqual(s, { open: false, moving: null, reference: null, role: null, delta: [0, 0, 0], previewing: false, source: null, target: null, hover: null, canUndo: false, canRedo: false, basepoints: false, error: null });
+  assert.deepEqual(s, { open: false, moving: null, reference: null, role: null, delta: [0, 0, 0], previewing: false, source: null, target: null, hover: null, canUndo: false, canRedo: false, basepoints: false, error: null, measure: NO_MEASURE });
 });
 
 test('open, picking a point on the model that moves, with a move shown', () => {

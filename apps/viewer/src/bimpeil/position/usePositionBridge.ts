@@ -13,12 +13,17 @@
  *   up the first of two loads that run together;
  * - `bimpeil:position-move` `{ action, ... }` (MoveCommand below): start or stop moving a model, the reference model,
  *   pick a point in the 3D view, a move in metres, apply, cancel, an absolute turn about a pivot, undo, redo, reset,
- *   a view (all models, from above), and the origins of the models on or off.
+ *   a view (all models, from above), and the origins of the models on or off; measure an angle (two points on the
+ *   model, two on the reference), choose a pivot by clicking, stop clicking, and clear what was measured.
  *
  * Moving starts at the origin of the model (the point 0,0,0 of its file) when it lies near the model, so the handles
  * of IfcLite stand there and not in the middle: the bridge sets that origin as the source point of the move, until a
  * point is picked on the model (origin.ts, origin-scene.ts). The origins on the page are BIMpeil's own markers
  * (OriginMarkers.tsx), and All and From above take them in while they are shown.
+ *
+ * A turn is about the pivot as it is drawn: that point stays where it is, also on a model that is turned already
+ * (turn.ts). Measuring and choosing the pivot click with their own picking (measure-scene.ts, MeasureLayer.tsx), not
+ * with the one of IfcLite for moving, which would move the model.
  *
  * The viewer sends `bimpeil:position-ready` once, `bimpeil:position-opened` `{ id, modelId }` or
  * `bimpeil:position-failed` `{ id, message }` per file, `bimpeil:position-models` `{ models }` (models.ts) and
@@ -32,15 +37,17 @@ import { useWebGpuOpenGuard } from '@/hooks/useWebGpuOpenGuard';
 import { getWebGPUStatus, retryWebGPU } from '@/hooks/useWebGPU';
 import { getGlobalRenderer } from '@/hooks/useBCF';
 import { useViewerStore, type FederatedModel } from '@/store';
-import { placementFor } from '@/lib/model-placement/state';
+import { rotationRefusal } from '@/lib/model-placement/rotation-refusal';
 import { useRepositionRuntime } from '@/lib/model-placement/reposition-runtime';
 import { modelBounds, modelCenter } from '@/lib/model-placement/scene';
 import { addTranslation } from '@/lib/model-placement/translation';
 import { fileToWorkspace } from './correction';
+import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState, startMeasure, startPivot, stopPicking, subscribeMeasure } from './measure-scene';
 import { positionModels } from './models';
 import { renderBoxAround } from './origin';
 import { currentOrigins, originsShown, setOriginsShown, subscribeOriginsShown } from './origin-scene';
 import { positionSession } from './session';
+import { turnAbout } from './turn';
 
 export type MoveCommand =
   | { action: 'start'; modelId: string }
@@ -50,14 +57,25 @@ export type MoveCommand =
   | { action: 'delta'; delta: [number, number, number] }
   | { action: 'apply' }
   | { action: 'cancel' }
-  /** Absolute heading in radians about a pivot: the origin of the file, the centre of the model, or a point of the file in metres */
-  | { action: 'rotate'; angle: number; pivot: 'origin' | 'centre' | [number, number, number] }
+  /**
+   * Absolute heading in radians about a pivot as it is drawn: the origin of the file, the centre of the model, the
+   * point chosen by clicking (`picked`), or a point of the file in metres
+   */
+  | { action: 'rotate'; angle: number; pivot: 'origin' | 'centre' | 'picked' | [number, number, number] }
   | { action: 'undo' }
   | { action: 'redo' }
   | { action: 'reset' }
   | { action: 'view'; view: 'all' | 'top' }
   /** The origins of the models (the basepoints of IfcLite) on or off */
-  | { action: 'basepoints'; show: boolean };
+  | { action: 'basepoints'; show: boolean }
+  /** Measure the angle between a line on the model and one on the reference the page shows: four clicks */
+  | { action: 'measure'; reference: string }
+  /** Choose the pivot of a turn: one click */
+  | { action: 'pickPivot' }
+  /** Stop clicking for measuring or the pivot */
+  | { action: 'stopPick' }
+  /** The measured lines and the chosen pivot go */
+  | { action: 'clearMeasure' };
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 const isTriple = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
@@ -67,10 +85,12 @@ export function parseMoveCommand(data: Record<string, unknown>): MoveCommand | n
   const a = data.action;
   if (a === 'start' || a === 'reference') return typeof data.modelId === 'string' ? { action: a, modelId: data.modelId } : null;
   if (a === 'stop' || a === 'apply' || a === 'cancel' || a === 'undo' || a === 'redo' || a === 'reset') return { action: a };
+  if (a === 'measure') return typeof data.reference === 'string' ? { action: a, reference: data.reference } : null;
+  if (a === 'pickPivot' || a === 'stopPick' || a === 'clearMeasure') return { action: a };
   if (a === 'pick') return data.role === 'source' || data.role === 'target' || data.role === null ? { action: a, role: data.role } : null;
   if (a === 'delta') return isTriple(data.delta) ? { action: a, delta: data.delta } : null;
   if (a === 'rotate') {
-    const pivot = data.pivot === 'origin' || data.pivot === 'centre' ? data.pivot : isTriple(data.pivot) ? data.pivot : null;
+    const pivot = data.pivot === 'origin' || data.pivot === 'centre' || data.pivot === 'picked' ? data.pivot : isTriple(data.pivot) ? data.pivot : null;
     return typeof data.angle === 'number' && Number.isFinite(data.angle) && pivot ? { action: a, angle: data.angle, pivot } : null;
   }
   if (a === 'view') return data.view === 'all' || data.view === 'top' ? { action: a, view: data.view } : null;
@@ -124,6 +144,8 @@ export function usePositionBridge(): void {
       const moving = store.modelPlacement.preview?.modelIds ?? rt?.selected ?? [];
       switch (command.action) {
         case 'start':
+          // Another model: what was measured belongs to the one before
+          if (moving[0] !== command.modelId) clearMeasure();
           store.setActiveTool?.('select');
           store.openReposition([command.modelId]);
           return;
@@ -135,7 +157,25 @@ export function usePositionBridge(): void {
           return;
         case 'pick':
           if (!rt) throw new Error('Moving is not on.');
+          stopPicking();
           rt.setRole(command.role);
+          return;
+        case 'measure': {
+          // The reference as the page shows it: IfcLite knows one only after it was chosen in the list
+          if (!moving[0] || !store.models.has(command.reference) || command.reference === moving[0]) throw new Error('Choose a model to move and a reference first.');
+          rt?.setRole(null);
+          startMeasure(moving[0], command.reference);
+          return;
+        }
+        case 'pickPivot':
+          rt?.setRole(null);
+          startPivot();
+          return;
+        case 'stopPick':
+          stopPicking();
+          return;
+        case 'clearMeasure':
+          clearMeasure();
           return;
         case 'delta':
           if (!store.modelPlacement.preview) store.openReposition(moving);
@@ -155,13 +195,18 @@ export function usePositionBridge(): void {
           const id = moving[0];
           const model = id ? (store.models.get(id) as FederatedModel | undefined) : undefined;
           if (!model) throw new Error('Choose a model to move first.');
-          const placement = placementFor(store.modelPlacement, id);
+          const refusal = rotationRefusal(store, [id]);
+          if (refusal) throw new Error(refusal);
+          // The pivot as drawn now, with a move that is shown
+          const chosen = measureState().pivot;
           const pivot =
             command.pivot === 'centre'
               ? modelCenter(id)
-              : fileToWorkspace(command.pivot === 'origin' ? [0, 0, 0] : command.pivot, model.geometryResult?.coordinateInfo, placement);
-          if (!pivot) throw new Error('Model bounds are not available yet.');
-          store.setModelRotation([id], { angle: command.angle, pivot: [...pivot] });
+              : command.pivot === 'picked'
+                ? chosen && drawnPoint(chosen)
+                : fileToWorkspace(command.pivot === 'origin' ? [0, 0, 0] : command.pivot, model.geometryResult?.coordinateInfo, drawnPlacement(store.modelPlacement, id));
+          if (!pivot) throw new Error(command.pivot === 'picked' ? 'Choose a pivot first.' : 'Model bounds are not available yet.');
+          useViewerStore.setState((current) => ({ modelPlacement: turnAbout(current.modelPlacement, id, command.angle, [...pivot]) }));
           if (!useViewerStore.getState().modelPlacement.preview) useViewerStore.getState().openReposition([id]);
           return;
         }
@@ -266,7 +311,7 @@ export function usePositionBridge(): void {
         lastModels = modelsKey;
         reply({ type: 'bimpeil:position-models', models });
       }
-      const session = positionSession(state.repositionOpen, state.modelPlacement, live.current.runtime, originsShown());
+      const session = positionSession(state.repositionOpen, state.modelPlacement, live.current.runtime, originsShown(), measureSession());
       const sessionKey = JSON.stringify(session);
       if (sessionKey !== lastSession) {
         lastSession = sessionKey;
@@ -282,6 +327,7 @@ export function usePositionBridge(): void {
       schedule();
     });
     const unsubscribeOrigins = subscribeOriginsShown(schedule);
+    const unsubscribeMeasure = subscribeMeasure(schedule);
 
     window.addEventListener('message', onMessage);
     reply({ type: 'bimpeil:position-ready' });
@@ -290,6 +336,7 @@ export function usePositionBridge(): void {
       window.removeEventListener('message', onMessage);
       unsubscribe();
       unsubscribeOrigins();
+      unsubscribeMeasure();
       sendSession.current = () => {};
       if (frame) cancelAnimationFrame(frame);
       if (retry) clearTimeout(retry);

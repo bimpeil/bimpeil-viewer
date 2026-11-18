@@ -72,3 +72,53 @@
   border-radius: 4px;
   padding: 0 6px;
 }
+
+/* Measuring an angle and choosing a pivot (MeasureLayer.tsx): the line on the model in Graphite, the line on the
+   reference in blue and dashed, the pivot as a ring with a cross, the point the pointer snaps to as an open ring */
+.bimpeil-position .bimpeil-measure {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 21;
+}
+.bimpeil-position .bimpeil-measure .line {
+  stroke-width: 2px;
+  stroke-linecap: round;
+}
+.bimpeil-position .bimpeil-measure .line.model {
+  stroke: #1e2328;
+}
+.bimpeil-position .bimpeil-measure .line.reference {
+  stroke: #1f4f80;
+  stroke-dasharray: 6 4;
+}
+.bimpeil-position .bimpeil-measure .point.model {
+  fill: #1e2328;
+}
+.bimpeil-position .bimpeil-measure .point.reference {
+  fill: #1f4f80;
+}
+.bimpeil-position .bimpeil-measure .pivot {
+  fill: #ffffff;
+  stroke: #1e2328;
+  stroke-width: 2px;
+}
+.bimpeil-position .bimpeil-measure .pivot-cross {
+  stroke: #1e2328;
+  stroke-width: 2px;
+}
+.bimpeil-position .bimpeil-measure .hover {
+  fill: none;
+  stroke: #1e2328;
+  stroke-width: 2px;
+}
+/* While clicking points, the handles of IfcLite stay visible but faint and let the click through to the model */
+.bimpeil-position[data-picking] svg:has([style*='cursor: grab']) {
+  opacity: 0.25;
+}
+.bimpeil-position[data-picking] [style*='cursor: grab'] {
+  pointer-events: none !important;
+}

@@ -12,6 +12,29 @@ import type { RepositionRuntime } from '@/lib/model-placement/reposition-runtime
 
 export type PickKind = 'point' | 'vertex' | 'edge' | 'face' | 'origin' | 'bounds';
 
+export type PickStep = 'model' | 'reference' | 'pivot';
+
+/** Measuring an angle and choosing a pivot by clicking, as the page gets it (measure-scene.ts) */
+export interface MeasureSession {
+  picking: PickStep | null;
+  /** Points clicked in this step: 0 or 1 */
+  count: number;
+  hover: PickKind | null;
+  /** Radians, counter-clockwise seen from above; null when nothing is measured */
+  angle: number | null;
+  tooShort: boolean;
+  result: number;
+  /** What the chosen pivot snapped to, or null when there is none */
+  pivot: PickKind | null;
+  /** Points or lines are drawn */
+  shown: boolean;
+  missed: boolean;
+}
+
+export const NO_MEASURE: MeasureSession = {
+  picking: null, count: 0, hover: null, angle: null, tooShort: false, result: 0, pivot: null, shown: false, missed: false,
+};
+
 export interface PositionSession {
   /** Moving is on (the reposition session of IfcLite is open) */
   open: boolean;
@@ -35,11 +58,13 @@ export interface PositionSession {
   basepoints: boolean;
   /** The last error of IfcLite, in English, or null */
   error: string | null;
+  /** Measuring an angle and choosing a pivot by clicking (measure-scene.ts) */
+  measure: MeasureSession;
 }
 
 type RuntimeView = Pick<RepositionRuntime, 'selected' | 'reference' | 'role' | 'hover' | 'error'>;
 
-export function positionSession(open: boolean, placement: PlacementState, runtime: RuntimeView | null, basepoints = false): PositionSession {
+export function positionSession(open: boolean, placement: PlacementState, runtime: RuntimeView | null, basepoints = false, measure: MeasureSession = NO_MEASURE): PositionSession {
   const preview = placement.preview;
   const delta = (preview?.delta ?? [0, 0, 0]).map((v) => v + 0) as [number, number, number];
   return {
@@ -56,5 +81,6 @@ export function positionSession(open: boolean, placement: PlacementState, runtim
     canRedo: placement.redo.length > 0,
     basepoints,
     error: runtime?.error || null,
+    measure,
   };
 }

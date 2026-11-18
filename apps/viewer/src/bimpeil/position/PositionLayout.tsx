@@ -8,11 +8,13 @@
  * rail, panels or status bar. Every control is on the page around it (usePositionBridge.ts). The empty state of
  * IfcLite is hidden in position.css: the page says what to do.
  */
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { ViewportContainer } from '@/components/viewer/ViewportContainer';
 import { useOverlayCompositor } from '@/components/viewer/schedule/useOverlayCompositor';
 import { useThemeDocumentClass } from '@/components/viewer/useThemeDocumentClass';
 import { useViewerStore } from '@/store';
+import { MeasureLayer } from './MeasureLayer';
+import { measureState, subscribeMeasure } from './measure-scene';
 import { OriginMarkers } from './OriginMarkers';
 import { usePositionBridge } from './usePositionBridge';
 
@@ -21,12 +23,15 @@ export function PositionLayout() {
   useOverlayCompositor();
   useThemeDocumentClass();
   usePositionBridge();
+  // While points are clicked for measuring or the pivot, the handles of IfcLite stay out of the way (position.css)
+  const picking = useSyncExternalStore(subscribeMeasure, () => measureState().picking !== null);
   // Light, like the page around it
   useEffect(() => useViewerStore.getState().setTheme('light'), []);
   return (
-    <div className="bimpeil-position" style={{ position: 'fixed', inset: 0 }}>
+    <div className="bimpeil-position" data-picking={picking ? '' : undefined} style={{ position: 'fixed', inset: 0 }}>
       <ViewportContainer />
       <OriginMarkers />
+      <MeasureLayer />
     </div>
   );
 }
