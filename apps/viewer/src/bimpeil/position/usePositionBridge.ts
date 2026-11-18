@@ -15,7 +15,8 @@
  *   pick a point in the 3D view, a move in metres, apply, cancel, an absolute turn about a pivot, undo, redo, reset,
  *   a view (all models, from above), and the origins of the models on or off; measure an angle (two points on the
  *   model, two on the reference), choose a pivot by clicking, stop clicking, and clear what was measured; a section,
- *   horizontal or across X or Y, at a place of a slider (section-scene.ts).
+ *   horizontal or across X or Y, at a place of a slider (section-scene.ts); and `bimpeil:position-texts` `{ texts }`,
+ *   the texts of the section in the 3D view in the language of the page (SectionLayer.tsx, section-texts.ts).
  *
  * Moving starts at the origin of the model (the point 0,0,0 of its file) when it lies near the model, so the handles
  * of IfcLite stand there and not in the middle: the bridge sets that origin as the source point of the move, until a
@@ -45,12 +46,13 @@ import { modelBounds, modelCenter } from '@/lib/model-placement/scene';
 import { addTranslation } from '@/lib/model-placement/translation';
 import { holdCamera, releaseCamera, wakeHandles } from './camera-hold';
 import { fileToWorkspace } from './correction';
-import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState, startMeasure, startPivot, startSectionPick, stopPicking, subscribeMeasure } from './measure-scene';
+import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState, startMeasure, startPivot, stopPicking, subscribeMeasure } from './measure-scene';
 import { positionModels } from './models';
 import { renderBoxAround } from './origin';
 import { currentOrigins, originsShown, setOriginsShown, subscribeOriginsShown } from './origin-scene';
 import type { SectionDirection } from './section';
 import { applySection, sectionSession } from './section-scene';
+import { setSectionTexts } from './section-texts';
 import { positionSession } from './session';
 import { turnAbout } from './turn';
 
@@ -82,9 +84,7 @@ export type MoveCommand =
   /** The measured lines and the chosen pivot go */
   | { action: 'clearMeasure' }
   /** A section through all models: horizontal (`z`) or across X or Y, at a place of the slider (0 to 1 over the scene) */
-  | { action: 'section'; enabled: boolean; direction: SectionDirection | 'picked'; fraction: number; flipped: boolean }
-  /** Click a face of a model: the section goes through it */
-  | { action: 'sectionPick' };
+  | { action: 'section'; enabled: boolean; direction: SectionDirection | 'picked'; fraction: number; flipped: boolean };
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 const isTriple = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
@@ -95,7 +95,7 @@ export function parseMoveCommand(data: Record<string, unknown>): MoveCommand | n
   if (a === 'start' || a === 'reference') return typeof data.modelId === 'string' ? { action: a, modelId: data.modelId } : null;
   if (a === 'stop' || a === 'apply' || a === 'cancel' || a === 'undo' || a === 'redo' || a === 'reset') return { action: a };
   if (a === 'measure') return typeof data.reference === 'string' ? { action: a, reference: data.reference } : null;
-  if (a === 'pickPivot' || a === 'stopPick' || a === 'clearMeasure' || a === 'sectionPick') return { action: a };
+  if (a === 'pickPivot' || a === 'stopPick' || a === 'clearMeasure') return { action: a };
   if (a === 'pick') return data.role === 'source' || data.role === 'target' || data.role === null ? { action: a, role: data.role } : null;
   if (a === 'delta') return isTriple(data.delta) ? { action: a, delta: data.delta } : null;
   if (a === 'rotate') {
@@ -243,11 +243,6 @@ export function usePositionBridge(): void {
           if (moving.length) store.resetModelTranslations(moving);
           reopen(moving);
           return;
-        case 'sectionPick':
-          // Picking a point for moving stops: one click picks one thing
-          rt?.setRole(null);
-          startSectionPick();
-          return;
         case 'section': {
           // Just after loading the bounds of the models may not be there yet: try again for ten seconds, unless a newer
           // section command came in between. Whether the renderer cut is known after its next frame: report then.
@@ -293,6 +288,7 @@ export function usePositionBridge(): void {
       const id = typeof data.id === 'string' ? data.id : '';
       if (data.type === 'bimpeil:position-open' && data.file instanceof File) add(id, data.file);
       else if (data.type === 'bimpeil:position-replace' && data.file instanceof File && typeof data.modelId === 'string') add(id, data.file, data.modelId);
+      else if (data.type === 'bimpeil:position-texts') setSectionTexts(data.texts);
       else if (data.type === 'bimpeil:position-remove' && typeof data.modelId === 'string') {
         if (useViewerStore.getState().models.has(data.modelId)) live.current.removeModel(data.modelId);
       } else if (data.type === 'bimpeil:position-move') {

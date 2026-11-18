@@ -16,6 +16,7 @@ import { useViewerStore } from '@/store';
 import { MeasureLayer } from './MeasureLayer';
 import { measureState, subscribeMeasure } from './measure-scene';
 import { OriginMarkers } from './OriginMarkers';
+import { SectionLayer } from './SectionLayer';
 import { keepSurfaceZoom } from './surface-zoom';
 import { usePositionBridge } from './usePositionBridge';
 
@@ -35,6 +36,7 @@ export function PositionLayout() {
       <ViewportContainer />
       <OriginMarkers />
       <MeasureLayer />
+      <SectionLayer />
     </div>
   );
 }

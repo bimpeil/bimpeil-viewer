@@ -125,3 +125,32 @@ export function towardCamera(normal: readonly number[], point: readonly number[]
   const sign = dot(toCamera, normal) < 0 ? -1 : 1;
   return [sign * normal[0] + 0, sign * normal[1] + 0, sign * normal[2] + 0];
 }
+
+/**
+ * Metres along the normal for a drag of the pointer, as the drag gizmo of IfcLite does: the drag projected on the
+ * screen direction of the normal, divided by the pixels of one metre there (`tip` is the screen point one metre along
+ * the normal from `foot`). Null when the normal points at the screen (edge on), where a drag would be unstable.
+ */
+export function dragMetres(foot: ScreenXY, tip: ScreenXY, from: ScreenXY, to: ScreenXY): number | null {
+  const ax = tip.x - foot.x;
+  const ay = tip.y - foot.y;
+  const perMetre = ax * ax + ay * ay;
+  if (!(perMetre > 1e-6)) return null;
+  return ((to.x - from.x) * ax + (to.y - from.y) * ay) / perMetre + 0;
+}
+
+export interface ScreenXY {
+  x: number;
+  y: number;
+}
+
+/** The items of the menu of a right click: on a face, through it or horizontal there; with a section, flip and remove */
+export function sectionMenu(onFace: boolean, active: boolean): ('throughFace' | 'horizontalHere' | 'flip' | 'remove')[] {
+  return [...(onFace ? (['throughFace', 'horizontalHere'] as const) : []), ...(active ? (['flip', 'remove'] as const) : [])];
+}
+
+/** The point of the plane under the clicked point: where the handle stands as the plane moves */
+export function planeFoot(pickedAt: readonly number[], normal: readonly number[], distance: number): Triple {
+  const shift = distance - (pickedAt[0] * normal[0] + pickedAt[1] * normal[1] + pickedAt[2] * normal[2]);
+  return [pickedAt[0] + normal[0] * shift, pickedAt[1] + normal[1] * shift, pickedAt[2] + normal[2] * shift];
+}

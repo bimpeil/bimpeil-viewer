@@ -13,7 +13,7 @@ import type { RepositionRuntime } from '@/lib/model-placement/reposition-runtime
 
 export type PickKind = 'point' | 'vertex' | 'edge' | 'face' | 'origin' | 'bounds';
 
-export type PickStep = 'model' | 'reference' | 'pivot' | 'section';
+export type PickStep = 'model' | 'reference' | 'pivot';
 
 /** Measuring an angle and choosing a pivot by clicking, as the page gets it (measure-scene.ts) */
 export interface MeasureSession {

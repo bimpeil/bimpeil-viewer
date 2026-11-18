@@ -73,11 +73,7 @@ export function MeasureLayer() {
       const modelId = resolveEntityRef(id).modelId;
       if (!accepts(modelId)) return null;
       const kind = target?.type === 'vertex' ? 'vertex' : target?.type === 'edge' ? 'edge' : target?.type === 'face' || target?.type === 'face_center' ? 'face' : 'point';
-      const surface = result.intersection;
-      const face = surface
-        ? { point: [surface.point.x, surface.point.y, surface.point.z] as [number, number, number], normal: [surface.normal.x, surface.normal.y, surface.normal.z] as [number, number, number] }
-        : undefined;
-      return { modelId, point: fromRenderTranslation(point), kind, face };
+      return { modelId, point: fromRenderTranslation(point), kind };
     };
     const move = (event: PointerEvent) => {
       if (event.buttons !== 0) return;

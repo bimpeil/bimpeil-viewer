@@ -22,6 +22,7 @@ import {
   fractionAlong,
   NO_SECTION,
   offsetFrom,
+  planeFoot,
   sectionFraction,
   sectionPlaneAt,
   sectionValue,
@@ -121,5 +122,66 @@ export function sectionSession(moving: string | null): SectionSession {
     value: Math.round(sectionValue(direction, plane.custom.distance, frameOffset(moving)) * 1e6) / 1e6,
     flipped: plane.flipped,
     clipped,
+  };
+}
+
+/** A horizontal section through a clicked point (render frame), exactly at its height */
+export function horizontalSectionAt(point: Triple): void {
+  const store = useViewerStore.getState();
+  const box = sceneBox();
+  store.setSectionPlaneFromFace([0, 1, 0], point, box ? { min: [box.min.x, box.min.y, box.min.z], max: [box.max.x, box.max.y, box.max.z] } : undefined);
+  useViewerStore.getState().setSectionCustomDistance(point[1]);
+  store.setSectionShowCap(true);
+  store.setSectionShowOutlines(true);
+  getGlobalRenderer()?.requestRender();
+}
+
+export function flipSection(): void {
+  useViewerStore.getState().flipSectionPlane();
+  getGlobalRenderer()?.requestRender();
+}
+
+export function removeSection(): void {
+  useViewerStore.getState().setSectionPlaneEnabled(false);
+  getGlobalRenderer()?.requestRender();
+}
+
+/** Move the plane to a distance along its normal (dragging the handle) */
+export function moveSectionTo(distance: number): void {
+  if (!Number.isFinite(distance)) return;
+  useViewerStore.getState().setSectionCustomDistance(distance);
+  getGlobalRenderer()?.requestRender();
+}
+
+export interface SectionHandle {
+  /** The handle on the plane, under the clicked point, and one metre along the normal from there (render frame) */
+  foot: { x: number; y: number; z: number };
+  tip: { x: number; y: number; z: number };
+  distance: number;
+  direction: SectionDirection | 'picked';
+  /** Where the plane is: the height, X or Y in the file, or the distance from the clicked face */
+  value: number;
+  flipped: boolean;
+}
+
+/** The handle of the section that cuts now, or null */
+export function sectionHandle(moving: string | null): SectionHandle | null {
+  const plane = useViewerStore.getState().sectionPlane;
+  const custom = plane.custom;
+  if (!plane.enabled || !custom) return null;
+  // Every frame: no bounds of the models here, only the plane and the offset of the render frame
+  const direction = directionOf(custom.normal);
+  const value = direction
+    ? sectionValue(direction, custom.distance, frameOffset(moving))
+    : Math.round(offsetFrom(custom.pickedAt, custom.normal, custom.distance) * 1000) / 1000 + 0;
+  const [fx, fy, fz] = planeFoot(custom.pickedAt, custom.normal, custom.distance);
+  const [nx, ny, nz] = custom.normal;
+  return {
+    foot: { x: fx, y: fy, z: fz },
+    tip: { x: fx + nx, y: fy + ny, z: fz + nz },
+    distance: custom.distance,
+    direction: direction ?? 'picked',
+    value,
+    flipped: plane.flipped,
   };
 }
