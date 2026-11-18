@@ -42,6 +42,9 @@ export interface ViewerPlacement {
 /** Federation statuses where the geometry is still in the model's own frame */
 const OWN_FRAME: ReadonlySet<string | undefined> = new Set([undefined, 'none', 'anchor', 'identity']);
 
+/** The model is drawn in its own frame, so a point of its file maps to the view with the offset of that frame */
+export const hasOwnFrame = (alignmentStatus: string | undefined): boolean => OWN_FRAME.has(alignmentStatus);
+
 const plain = (v: number) => v + 0;
 
 export function fileCorrection(placement: ViewerPlacement, frame: RenderFrameInfo | null | undefined, alignmentStatus: string | undefined): CorrectionResult {

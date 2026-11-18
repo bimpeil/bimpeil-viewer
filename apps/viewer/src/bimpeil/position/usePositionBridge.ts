@@ -15,6 +15,11 @@
  *   pick a point in the 3D view, a move in metres, apply, cancel, an absolute turn about a pivot, undo, redo, reset,
  *   a view (all models, from above), and the origins of the models on or off.
  *
+ * Moving starts at the origin of the model (the point 0,0,0 of its file) when it lies near the model, so the handles
+ * of IfcLite stand there and not in the middle: the bridge sets that origin as the source point of the move, until a
+ * point is picked on the model (origin.ts, origin-scene.ts). The origins on the page are BIMpeil's own markers
+ * (OriginMarkers.tsx), and All and From above take them in while they are shown.
+ *
  * The viewer sends `bimpeil:position-ready` once, `bimpeil:position-opened` `{ id, modelId }` or
  * `bimpeil:position-failed` `{ id, message }` per file, `bimpeil:position-models` `{ models }` (models.ts) and
  * `bimpeil:position-session` `{ session }` (session.ts) when they change, and `bimpeil:position-error`
@@ -29,9 +34,12 @@ import { getGlobalRenderer } from '@/hooks/useBCF';
 import { useViewerStore, type FederatedModel } from '@/store';
 import { placementFor } from '@/lib/model-placement/state';
 import { useRepositionRuntime } from '@/lib/model-placement/reposition-runtime';
-import { frameModels, modelBounds, modelCenter } from '@/lib/model-placement/scene';
+import { modelBounds, modelCenter } from '@/lib/model-placement/scene';
+import { addTranslation } from '@/lib/model-placement/translation';
 import { fileToWorkspace } from './correction';
 import { positionModels } from './models';
+import { renderBoxAround } from './origin';
+import { currentOrigins, originsShown, setOriginsShown, subscribeOriginsShown } from './origin-scene';
 import { positionSession } from './session';
 
 export type MoveCommand =
@@ -105,6 +113,11 @@ export function usePositionBridge(): void {
       });
     };
 
+    const reopen = (moving: readonly string[]) => {
+      const now = useViewerStore.getState();
+      if (now.repositionOpen && !now.modelPlacement.preview && moving.length) now.openReposition([...moving]);
+    };
+
     const move = (command: MoveCommand) => {
       const store = useViewerStore.getState();
       const rt = live.current.runtime;
@@ -152,28 +165,42 @@ export function usePositionBridge(): void {
           if (!useViewerStore.getState().modelPlacement.preview) useViewerStore.getState().openReposition([id]);
           return;
         }
+        // Undo and redo end the move in IfcLite (no handles until the next command): start a new, empty one for the
+        // same model, as after Apply; the history stays
         case 'undo':
           store.undoModelTranslation();
+          reopen(moving);
           return;
         case 'redo':
           store.redoModelTranslation();
+          reopen(moving);
           return;
         case 'reset':
           if (moving.length) store.resetModelTranslations(moving);
+          reopen(moving);
           return;
         case 'basepoints':
-          if (store.showModelBasepoints !== command.show) store.toggleShowModelBasepoints();
+          // BIMpeil's own markers; the basepoints of IfcLite stay off (origin-scene.ts)
+          if (store.showModelBasepoints) store.toggleShowModelBasepoints();
+          setOriginsShown(command.show);
           return;
         case 'view': {
           const ids = [...store.models.keys()];
           if (!ids.length) return;
-          frameModels(ids);
-          if (command.view === 'top') {
-            const boxes = ids.map(modelBounds).filter((b) => b !== null);
-            const min = { x: Math.min(...boxes.map((b) => b.min.x)), y: Math.min(...boxes.map((b) => b.min.y)), z: Math.min(...boxes.map((b) => b.min.z)) };
-            const max = { x: Math.max(...boxes.map((b) => b.max.x)), y: Math.max(...boxes.map((b) => b.max.y)), z: Math.max(...boxes.map((b) => b.max.z)) };
-            getGlobalRenderer()?.getCamera().setPresetView('top', { min, max });
-            getGlobalRenderer()?.requestRender();
+          const boxes = ids.map(modelBounds).filter((b) => b !== null);
+          if (!boxes.length) throw new Error('Model bounds are not available yet.');
+          const box = renderBoxAround(boxes, originsShown() ? currentOrigins().map((o) => o.render) : []);
+          if (!box) return;
+          const camera = getGlobalRenderer()?.getCamera();
+          camera?.fitToBounds(box.min, box.max);
+          if (command.view === 'top') camera?.setPresetView('top', box);
+          getGlobalRenderer()?.requestRender();
+          // A camera move without a pointer under it does not wake the layer with the handles of IfcLite (its
+          // projector, SceneProjectorProvider.tsx): the handles would stay where the old view had them. That layer
+          // wakes on pointer moves over the canvas, so one is sent, not bubbling; not while a point is picked, when
+          // the handles are hidden anyway and a move would be a hover
+          if (!rt?.role) {
+            for (const canvas of document.querySelectorAll('.bimpeil-position canvas')) canvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: false }));
           }
           return;
         }
@@ -199,12 +226,39 @@ export function usePositionBridge(): void {
       }
     };
 
+    // Moving starts at the origin of the model when it lies near it: the source point of the move, as long as no
+    // point was picked on the model. Again after Apply, Discard, a turn or an undo, which start a new move or move
+    // the origin. While the bounds of the model are not there yet, look again shortly.
+    let retry = 0;
+    const startAtOrigin = () => {
+      const state = useViewerStore.getState();
+      const preview = state.modelPlacement.preview;
+      if (!state.repositionOpen || !preview || preview.modelIds.length !== 1) return;
+      if (preview.source && preview.source.kind !== 'origin') return;
+      const id = preview.modelIds[0];
+      const origin = currentOrigins({ near: true }).find((o) => o.modelId === id);
+      if (!origin) return;
+      if (origin.near === null) {
+        if (!retry) retry = window.setTimeout(() => ((retry = 0), schedule()), 300);
+        return;
+      }
+      if (!origin.near) return;
+      const shownAt = preview.source ? addTranslation(preview.source.point, preview.delta) : null;
+      if (shownAt && shownAt.every((v, i) => Math.abs(v - origin.workspace[i]) < 1e-6)) return;
+      try {
+        state.setMoveAnchor('source', { modelId: id, point: origin.workspace, kind: 'origin' });
+      } catch {
+        // The move closed in between: the next change starts again
+      }
+    };
+
     // One message per frame at most, and only when something the page shows has changed (not every drag step)
     let lastModels = '';
     let lastSession = '';
     let frame = 0;
     const send = () => {
       frame = 0;
+      startAtOrigin();
       const state = useViewerStore.getState();
       const models = positionModels(state.models as ReadonlyMap<string, FederatedModel>, state.modelPlacement);
       const modelsKey = JSON.stringify(models.map(({ file, ...rest }) => ({ ...rest, file: !!file })));
@@ -212,7 +266,7 @@ export function usePositionBridge(): void {
         lastModels = modelsKey;
         reply({ type: 'bimpeil:position-models', models });
       }
-      const session = positionSession(state.repositionOpen, state.modelPlacement, live.current.runtime, state.showModelBasepoints);
+      const session = positionSession(state.repositionOpen, state.modelPlacement, live.current.runtime, originsShown());
       const sessionKey = JSON.stringify(session);
       if (sessionKey !== lastSession) {
         lastSession = sessionKey;
@@ -224,9 +278,10 @@ export function usePositionBridge(): void {
     };
     sendSession.current = schedule;
     const unsubscribe = useViewerStore.subscribe((state, previous) => {
-      if (state.models === previous.models && state.modelPlacement === previous.modelPlacement && state.repositionOpen === previous.repositionOpen && state.showModelBasepoints === previous.showModelBasepoints) return;
+      if (state.models === previous.models && state.modelPlacement === previous.modelPlacement && state.repositionOpen === previous.repositionOpen) return;
       schedule();
     });
+    const unsubscribeOrigins = subscribeOriginsShown(schedule);
 
     window.addEventListener('message', onMessage);
     reply({ type: 'bimpeil:position-ready' });
@@ -234,8 +289,10 @@ export function usePositionBridge(): void {
     return () => {
       window.removeEventListener('message', onMessage);
       unsubscribe();
+      unsubscribeOrigins();
       sendSession.current = () => {};
       if (frame) cancelAnimationFrame(frame);
+      if (retry) clearTimeout(retry);
     };
   }, []);
 }

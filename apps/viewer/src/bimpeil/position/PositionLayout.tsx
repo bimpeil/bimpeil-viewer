@@ -13,6 +13,7 @@ import { ViewportContainer } from '@/components/viewer/ViewportContainer';
 import { useOverlayCompositor } from '@/components/viewer/schedule/useOverlayCompositor';
 import { useThemeDocumentClass } from '@/components/viewer/useThemeDocumentClass';
 import { useViewerStore } from '@/store';
+import { OriginMarkers } from './OriginMarkers';
 import { usePositionBridge } from './usePositionBridge';
 
 export function PositionLayout() {
@@ -25,6 +26,7 @@ export function PositionLayout() {
   return (
     <div className="bimpeil-position" style={{ position: 'fixed', inset: 0 }}>
       <ViewportContainer />
+      <OriginMarkers />
     </div>
   );
 }

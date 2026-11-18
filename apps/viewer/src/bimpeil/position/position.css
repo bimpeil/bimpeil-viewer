@@ -15,3 +15,59 @@
 .bimpeil-position [data-testid='viewport-axis-helper'] ~ button {
   display: none !important;
 }
+
+/* The origins of the models (OriginMarkers.tsx), in the style of the page: a ring in Graphite at the point 0,0,0 of
+   the file, filled for the model that moves, with the name of the file on a white label. Never in the way of the
+   handles: no pointer events. */
+.bimpeil-position .bimpeil-origins {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
+}
+.bimpeil-position .bimpeil-origin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+.bimpeil-position .bimpeil-origin .dot {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid #1e2328;
+  background: #ffffff;
+}
+.bimpeil-position .bimpeil-origin .dot::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #1e2328;
+}
+.bimpeil-position .bimpeil-origin.moving .dot {
+  background: #1e2328;
+}
+.bimpeil-position .bimpeil-origin.moving .dot::after {
+  background: #ffffff;
+}
+.bimpeil-position .bimpeil-origin .name {
+  position: absolute;
+  left: 12px;
+  top: calc(-30px + var(--stack, 0) * 24px);
+  white-space: nowrap;
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #1e2328;
+  background: #ffffff;
+  border: 1px solid #dad7d0;
+  border-radius: 4px;
+  padding: 0 6px;
+}
