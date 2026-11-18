@@ -23,7 +23,8 @@
  *
  * A turn is about the pivot as it is drawn: that point stays where it is, also on a model that is turned already
  * (turn.ts). Measuring and choosing the pivot click with their own picking (measure-scene.ts, MeasureLayer.tsx), not
- * with the one of IfcLite for moving, which would move the model.
+ * with the one of IfcLite for moving, which would move the model. A turn, an undo, a redo and a reset keep the view:
+ * IfcLite frames the camera again after a turn, and it is put back (camera-hold.ts).
  *
  * The viewer sends `bimpeil:position-ready` once, `bimpeil:position-opened` `{ id, modelId }` or
  * `bimpeil:position-failed` `{ id, message }` per file, `bimpeil:position-models` `{ models }` (models.ts) and
@@ -41,6 +42,7 @@ import { rotationRefusal } from '@/lib/model-placement/rotation-refusal';
 import { useRepositionRuntime } from '@/lib/model-placement/reposition-runtime';
 import { modelBounds, modelCenter } from '@/lib/model-placement/scene';
 import { addTranslation } from '@/lib/model-placement/translation';
+import { holdCamera, releaseCamera, wakeHandles } from './camera-hold';
 import { fileToWorkspace } from './correction';
 import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState, startMeasure, startPivot, stopPicking, subscribeMeasure } from './measure-scene';
 import { positionModels } from './models';
@@ -206,6 +208,7 @@ export function usePositionBridge(): void {
                 ? chosen && drawnPoint(chosen)
                 : fileToWorkspace(command.pivot === 'origin' ? [0, 0, 0] : command.pivot, model.geometryResult?.coordinateInfo, drawnPlacement(store.modelPlacement, id));
           if (!pivot) throw new Error(command.pivot === 'picked' ? 'Choose a pivot first.' : 'Model bounds are not available yet.');
+          holdCamera();
           useViewerStore.setState((current) => ({ modelPlacement: turnAbout(current.modelPlacement, id, command.angle, [...pivot]) }));
           if (!useViewerStore.getState().modelPlacement.preview) useViewerStore.getState().openReposition([id]);
           return;
@@ -213,14 +216,17 @@ export function usePositionBridge(): void {
         // Undo and redo end the move in IfcLite (no handles until the next command): start a new, empty one for the
         // same model, as after Apply; the history stays
         case 'undo':
+          holdCamera();
           store.undoModelTranslation();
           reopen(moving);
           return;
         case 'redo':
+          holdCamera();
           store.redoModelTranslation();
           reopen(moving);
           return;
         case 'reset':
+          holdCamera();
           if (moving.length) store.resetModelTranslations(moving);
           reopen(moving);
           return;
@@ -230,6 +236,7 @@ export function usePositionBridge(): void {
           setOriginsShown(command.show);
           return;
         case 'view': {
+          releaseCamera();
           const ids = [...store.models.keys()];
           if (!ids.length) return;
           const boxes = ids.map(modelBounds).filter((b) => b !== null);
@@ -240,13 +247,10 @@ export function usePositionBridge(): void {
           camera?.fitToBounds(box.min, box.max);
           if (command.view === 'top') camera?.setPresetView('top', box);
           getGlobalRenderer()?.requestRender();
-          // A camera move without a pointer under it does not wake the layer with the handles of IfcLite (its
-          // projector, SceneProjectorProvider.tsx): the handles would stay where the old view had them. That layer
-          // wakes on pointer moves over the canvas, so one is sent, not bubbling; not while a point is picked, when
-          // the handles are hidden anyway and a move would be a hover
-          if (!rt?.role) {
-            for (const canvas of document.querySelectorAll('.bimpeil-position canvas')) canvas.dispatchEvent(new PointerEvent('pointermove', { bubbles: false }));
-          }
+          // A camera move without a pointer under it does not wake the layer with the handles of IfcLite: the
+          // handles would stay where the old view had them (camera-hold.ts). Not while a point is picked, when the
+          // handles are hidden anyway and a move would be a hover
+          if (!rt?.role) wakeHandles();
           return;
         }
       }
