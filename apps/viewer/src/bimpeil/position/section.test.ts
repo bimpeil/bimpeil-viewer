@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { toRenderTranslation } from '@/lib/model-placement/translation';
-import { directionOf, sectionFraction, sectionNormal, sectionPlaneAt, sectionRange, sectionValue, type RenderBox } from './section';
+import { directionOf, distanceAlong, fractionAlong, offsetFrom, rangeAlong, sectionFraction, sectionNormal, sectionPlaneAt, sectionRange, sectionValue, towardCamera, type RenderBox } from './section';
 
 /** A scene in the render frame (Y up): file X 10..30, file Y 5..25 (render Z -25..-5), height 0..12 */
 const box: RenderBox = { min: { x: 10, y: 0, z: -25 }, max: { x: 30, y: 12, z: -5 } };
@@ -51,4 +51,32 @@ test('the direction of a normal: only the three of this viewer, anything else is
   assert.equal(directionOf([0, 0, -1]), 'y');
   assert.equal(directionOf([0, 0, 1]), null);
   assert.equal(directionOf([0.6, 0.8, 0]), null);
+});
+
+test('a picked face moves through the whole scene along its own normal, and back to the slider (step 2)', () => {
+  // A facade turned 30 degrees: the normal is not one of the three directions
+  const normal = [Math.cos(Math.PI / 6), 0, Math.sin(Math.PI / 6)];
+  const { min, max } = rangeAlong(normal, box);
+  const corners = [10, 30].flatMap((x) => [-25, -5].map((z) => x * normal[0] + z * normal[2]));
+  assert.ok(Math.abs(min - Math.min(...corners)) < 1e-12 && Math.abs(max - Math.max(...corners)) < 1e-12);
+  for (const fraction of [0, 0.4, 1]) {
+    const distance = distanceAlong(normal, fraction, box);
+    assert.ok(Math.abs(fractionAlong(normal, distance, box) - fraction) < 1e-12);
+  }
+  // For a normal of one of the three directions it is the same range as there
+  assert.deepEqual(rangeAlong(sectionNormal('z'), box), sectionRange('z', box));
+});
+
+test('where a picked plane is: the distance from the clicked point along the normal', () => {
+  const normal = [0, 0, 1];
+  const point = [12, 3, -7];
+  assert.equal(offsetFrom(point, normal, -7), 0);
+  assert.equal(offsetFrom(point, normal, -6.75), 0.25);
+  assert.ok(!Object.is(offsetFrom(point, normal, -7), -0));
+});
+
+test('the normal of a clicked face is turned toward the camera, as IfcLite does', () => {
+  // A face at the origin seen from +Z: a normal toward -Z is turned around, one toward +Z stays
+  assert.deepEqual(towardCamera([0, 0, -1], [0, 0, 0], [0, 0, 10]), [0, 0, 1]);
+  assert.deepEqual(towardCamera([0, 0, 1], [0, 0, 0], [0, 0, 10]), [0, 0, 1]);
 });

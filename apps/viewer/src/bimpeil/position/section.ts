@@ -21,11 +21,11 @@ export type Triple = [number, number, number];
 /** The section as the bridge reports it to the page (bimpeil:position-session) */
 export interface SectionSession {
   enabled: boolean;
-  /** `other`: a plane IfcLite set otherwise (none in this viewer yet) */
-  direction: SectionDirection | 'other' | null;
+  /** `picked`: through a face that was clicked, with its own normal */
+  direction: SectionDirection | 'picked' | null;
   /** The place over the scene, 0 to 1 */
   fraction: number | null;
-  /** Where the plane is: the height, X or Y in metres in the file */
+  /** Where the plane is: the height, X or Y in metres in the file; for a picked face, the distance from that face */
   value: number | null;
   flipped: boolean;
   /** The last frame of the renderer was cut */
@@ -90,4 +90,38 @@ export function directionOf(normal: readonly number[]): SectionDirection | null 
     if (n.every((v, i) => Math.abs(v - normal[i]) < 1e-9)) return direction;
   }
   return null;
+}
+
+const corners = (box: RenderBox): Triple[] =>
+  [box.min.x, box.max.x].flatMap((x) => [box.min.y, box.max.y].flatMap((y) => [box.min.z, box.max.z].map((z): Triple => [x, y, z])));
+const dot = (a: readonly number[], b: readonly number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/** The range of the distance along any normal over a box of the scene: a picked face moves through all of it */
+export function rangeAlong(normal: readonly number[], box: RenderBox): { min: number; max: number } {
+  const values = corners(box).map((c) => dot(c, normal));
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+/** The distance at a fraction (0 to 1) of that range, and back */
+export function distanceAlong(normal: readonly number[], fraction: number, box: RenderBox): number {
+  const { min, max } = rangeAlong(normal, box);
+  const f = Number.isFinite(fraction) ? Math.min(1, Math.max(0, fraction)) : 0.5;
+  return min + f * (max - min);
+}
+export function fractionAlong(normal: readonly number[], distance: number, box: RenderBox): number {
+  const { min, max } = rangeAlong(normal, box);
+  if (!(max - min > 1e-9)) return 0.5;
+  return Math.min(1, Math.max(0, (distance - min) / (max - min)));
+}
+
+/** How far the plane lies from the clicked point along its normal, in metres (the unit of the render frame) */
+export function offsetFrom(point: readonly number[], normal: readonly number[], distance: number): number {
+  return distance - dot(point, normal) + 0;
+}
+
+/** The normal of a clicked face turned toward the camera, as IfcLite does: the side the user looks at stays */
+export function towardCamera(normal: readonly number[], point: readonly number[], camera: readonly number[]): Triple {
+  const toCamera = [camera[0] - point[0], camera[1] - point[1], camera[2] - point[2]];
+  const sign = dot(toCamera, normal) < 0 ? -1 : 1;
+  return [sign * normal[0] + 0, sign * normal[1] + 0, sign * normal[2] + 0];
 }

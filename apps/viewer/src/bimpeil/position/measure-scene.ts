@@ -17,6 +17,7 @@ import { displayedTranslation, placementFor, type PlacementState } from '@/lib/m
 import { modelPointToWorkspacePoint, workspacePointToModelFrame, type PointPlacement } from '@/lib/model-placement/rotation';
 import type { Translation } from '@/lib/model-placement/translation';
 import { planAngle } from './measure';
+import { applyPickedSection } from './section-scene';
 import type { MeasureSession, PickKind, PickStep } from './session';
 
 /** A clicked point, in the frame of the model it is on */
@@ -31,6 +32,8 @@ export interface Hit {
   /** Workspace, as drawn */
   point: Translation;
   kind: PickKind;
+  /** The face under the click in the render frame, without snapping: for a section through it */
+  face?: { point: [number, number, number]; normal: [number, number, number] };
 }
 
 interface MeasureState {
@@ -111,10 +114,15 @@ export function startPivot(): void {
   set({ picking: 'pivot', hover: null, missed: false });
 }
 
+/** Click a face of any model: the section goes through it (section-scene.ts) */
+export function startSectionPick(): void {
+  set({ picking: 'section', hover: null, missed: false });
+}
+
 /** Stop clicking; a measurement that is not finished goes */
 export function stopPicking(): void {
   if (!state.picking) return;
-  const unfinished = state.picking !== 'pivot' && state.angle === null && !state.tooShort;
+  const unfinished = (state.picking === 'model' || state.picking === 'reference') && state.angle === null && !state.tooShort;
   set({ picking: null, hover: null, missed: false, ...(unfinished ? { modelLine: [], referenceLine: [] } : {}) });
 }
 
@@ -127,7 +135,7 @@ export function clearMeasure(): void {
 export function accepts(modelId: string): boolean {
   if (state.picking === 'model') return modelId === state.moving;
   if (state.picking === 'reference') return modelId === state.reference;
-  return state.picking === 'pivot';
+  return state.picking === 'pivot' || state.picking === 'section';
 }
 
 export function setHover(hover: Hit | null): void {
@@ -141,6 +149,11 @@ export function setMissed(): void {
 
 export function pick(hit: Hit): void {
   if (!state.picking || !accepts(hit.modelId)) return;
+  if (state.picking === 'section') {
+    if (hit.face) applyPickedSection(hit.face);
+    set({ picking: null, hover: null, missed: !hit.face });
+    return;
+  }
   const anchor = anchorFor(hit);
   if (state.picking === 'pivot') {
     set({ picking: null, pivot: anchor, hover: null, missed: false });

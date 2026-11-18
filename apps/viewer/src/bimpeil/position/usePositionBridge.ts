@@ -45,7 +45,7 @@ import { modelBounds, modelCenter } from '@/lib/model-placement/scene';
 import { addTranslation } from '@/lib/model-placement/translation';
 import { holdCamera, releaseCamera, wakeHandles } from './camera-hold';
 import { fileToWorkspace } from './correction';
-import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState, startMeasure, startPivot, stopPicking, subscribeMeasure } from './measure-scene';
+import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState, startMeasure, startPivot, startSectionPick, stopPicking, subscribeMeasure } from './measure-scene';
 import { positionModels } from './models';
 import { renderBoxAround } from './origin';
 import { currentOrigins, originsShown, setOriginsShown, subscribeOriginsShown } from './origin-scene';
@@ -82,7 +82,9 @@ export type MoveCommand =
   /** The measured lines and the chosen pivot go */
   | { action: 'clearMeasure' }
   /** A section through all models: horizontal (`z`) or across X or Y, at a place of the slider (0 to 1 over the scene) */
-  | { action: 'section'; enabled: boolean; direction: SectionDirection; fraction: number; flipped: boolean };
+  | { action: 'section'; enabled: boolean; direction: SectionDirection | 'picked'; fraction: number; flipped: boolean }
+  /** Click a face of a model: the section goes through it */
+  | { action: 'sectionPick' };
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 const isTriple = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
@@ -93,7 +95,7 @@ export function parseMoveCommand(data: Record<string, unknown>): MoveCommand | n
   if (a === 'start' || a === 'reference') return typeof data.modelId === 'string' ? { action: a, modelId: data.modelId } : null;
   if (a === 'stop' || a === 'apply' || a === 'cancel' || a === 'undo' || a === 'redo' || a === 'reset') return { action: a };
   if (a === 'measure') return typeof data.reference === 'string' ? { action: a, reference: data.reference } : null;
-  if (a === 'pickPivot' || a === 'stopPick' || a === 'clearMeasure') return { action: a };
+  if (a === 'pickPivot' || a === 'stopPick' || a === 'clearMeasure' || a === 'sectionPick') return { action: a };
   if (a === 'pick') return data.role === 'source' || data.role === 'target' || data.role === null ? { action: a, role: data.role } : null;
   if (a === 'delta') return isTriple(data.delta) ? { action: a, delta: data.delta } : null;
   if (a === 'rotate') {
@@ -103,7 +105,7 @@ export function parseMoveCommand(data: Record<string, unknown>): MoveCommand | n
   if (a === 'view') return data.view === 'all' || data.view === 'top' ? { action: a, view: data.view } : null;
   if (a === 'basepoints') return typeof data.show === 'boolean' ? { action: a, show: data.show } : null;
   if (a === 'section') {
-    const direction = data.direction === 'z' || data.direction === 'x' || data.direction === 'y' ? data.direction : null;
+    const direction = data.direction === 'z' || data.direction === 'x' || data.direction === 'y' || data.direction === 'picked' ? data.direction : null;
     const ok = typeof data.enabled === 'boolean' && typeof data.flipped === 'boolean' && typeof data.fraction === 'number' && Number.isFinite(data.fraction);
     return ok && direction ? { action: a, enabled: data.enabled as boolean, direction, fraction: data.fraction as number, flipped: data.flipped as boolean } : null;
   }
@@ -241,6 +243,11 @@ export function usePositionBridge(): void {
           if (moving.length) store.resetModelTranslations(moving);
           reopen(moving);
           return;
+        case 'sectionPick':
+          // Picking a point for moving stops: one click picks one thing
+          rt?.setRole(null);
+          startSectionPick();
+          return;
         case 'section': {
           // Just after loading the bounds of the models may not be there yet: try again for ten seconds, unless a newer
           // section command came in between. Whether the renderer cut is known after its next frame: report then.
@@ -360,6 +367,8 @@ export function usePositionBridge(): void {
       )
         return;
       schedule();
+      // Whether the renderer cut is known after its next frame (a clicked face sets the plane without a command)
+      if (state.sectionPlane !== previous.sectionPlane) window.setTimeout(schedule, 150);
     });
     const unsubscribeOrigins = subscribeOriginsShown(schedule);
     const unsubscribeMeasure = subscribeMeasure(schedule);

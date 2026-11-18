@@ -16,11 +16,26 @@ import { renderFrameWorldOffset } from '@ifc-lite/geometry/world-frame';
 import { modelBounds } from '@/lib/model-placement/scene';
 import { hasOwnFrame } from './correction';
 import { renderBoxAround } from './origin';
-import { directionOf, NO_SECTION, sectionFraction, sectionPlaneAt, sectionValue, type RenderBox, type SectionDirection, type SectionSession } from './section';
+import {
+  directionOf,
+  distanceAlong,
+  fractionAlong,
+  NO_SECTION,
+  offsetFrom,
+  sectionFraction,
+  sectionPlaneAt,
+  sectionValue,
+  towardCamera,
+  type RenderBox,
+  type SectionDirection,
+  type SectionSession,
+  type Triple,
+} from './section';
 
 export interface SectionCommand {
   enabled: boolean;
-  direction: SectionDirection;
+  /** `picked`: the plane through the face that was clicked last, moved along its normal */
+  direction: SectionDirection | 'picked';
   /** The place of the slider, 0 to 1 over the scene */
   fraction: number;
   flipped: boolean;
@@ -49,8 +64,18 @@ export function applySection(command: SectionCommand): boolean {
   }
   const box = sceneBox();
   if (!box) return false;
-  const plane = sectionPlaneAt(command.direction, command.fraction, box);
   const current = store.sectionPlane;
+  if (command.direction === 'picked') {
+    const custom = current.custom;
+    // Nothing was clicked, or the plane is one of the three directions now: nothing to move
+    if (!custom || directionOf(custom.normal) !== null) return true;
+    if (!current.enabled) store.setSectionPlaneEnabled(true);
+    useViewerStore.getState().setSectionCustomDistance(distanceAlong(custom.normal, command.fraction, box));
+    if (useViewerStore.getState().sectionPlane.flipped !== command.flipped) useViewerStore.getState().flipSectionPlane();
+    getGlobalRenderer()?.requestRender();
+    return true;
+  }
+  const plane = sectionPlaneAt(command.direction, command.fraction, box);
   if (!current.enabled || !current.custom || directionOf(current.custom.normal) !== command.direction) {
     store.setSectionPlaneFromFace(plane.normal, plane.point);
     store.setSectionShowCap(true);
@@ -63,13 +88,32 @@ export function applySection(command: SectionCommand): boolean {
   return true;
 }
 
+/** A face clicked on a model (render frame): the section goes through it, with filled and outlined cut faces */
+export function applyPickedSection(face: { point: Triple; normal: Triple }): void {
+  const renderer = getGlobalRenderer();
+  const camera = renderer?.getCamera().getPosition();
+  const normal = camera ? towardCamera(face.normal, face.point, [camera.x, camera.y, camera.z]) : face.normal;
+  const box = sceneBox();
+  const store = useViewerStore.getState();
+  store.setSectionPlaneFromFace(normal, face.point, box ? { min: [box.min.x, box.min.y, box.min.z], max: [box.max.x, box.max.y, box.max.z] } : undefined);
+  store.setSectionShowCap(true);
+  store.setSectionShowOutlines(true);
+  renderer?.requestRender();
+}
+
 export function sectionSession(moving: string | null): SectionSession {
   const plane = useViewerStore.getState().sectionPlane;
   if (!plane.enabled) return { ...NO_SECTION, flipped: plane.flipped };
   const clipped = getGlobalRenderer()?.hasActiveClipping() ?? false;
-  const direction = plane.custom ? directionOf(plane.custom.normal) : null;
-  if (!plane.custom || !direction) return { enabled: true, direction: 'other', fraction: null, value: null, flipped: plane.flipped, clipped };
+  if (!plane.custom) return { enabled: true, direction: null, fraction: null, value: null, flipped: plane.flipped, clipped };
+  const direction = directionOf(plane.custom.normal);
   const box = sceneBox();
+  if (!direction) {
+    // A picked face: where the plane is, as the distance from that face, to the millimetre
+    const offset = Math.round(offsetFrom(plane.custom.pickedAt, plane.custom.normal, plane.custom.distance) * 1000) / 1000 + 0;
+    const fraction = box ? fractionAlong(plane.custom.normal, plane.custom.distance, box) : null;
+    return { enabled: true, direction: 'picked', fraction, value: offset, flipped: plane.flipped, clipped };
+  }
   return {
     enabled: true,
     direction,
