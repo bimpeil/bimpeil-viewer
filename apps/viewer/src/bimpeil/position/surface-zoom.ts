@@ -28,7 +28,13 @@ import { isGeometryLoadStreaming } from '@/lib/pick-gating';
 import { useViewerStore } from '@/store';
 import { cameraPoseKey, SURFACE_PICK_IDLE_MS, type SurfacePoint } from '@/components/viewer/zoomSurface';
 
-type Renderer = NonNullable<ReturnType<typeof getGlobalRenderer>>;
+/** The part of the renderer the finder uses */
+export interface SurfaceRenderer {
+  getScene(): object;
+  getCamera(): { unprojectToRay(x: number, y: number, width: number, height: number): { origin: SurfacePoint; direction: SurfacePoint } };
+  hasActiveClipping(): boolean;
+  raycastScene(x: number, y: number, options: { isStreaming: boolean; hiddenIds: Set<number>; isolatedIds: Set<number> | null }): { intersection: { point: SurfacePoint } } | null;
+}
 
 /** The part of the camera of IfcLite this module uses */
 export interface ZoomCamera {
@@ -118,11 +124,18 @@ let warned = false;
  * the distance of the nearest hit. Hidden and isolated elements count as for picking; not while a model is loading,
  * as IfcLite. When IfcLite has released the geometry to save memory, the scene only knows the boxes of the elements
  * (`Scene.raycast`): zooming then stops short of a box, which still does not pass through it.
+ *
+ * While a section cuts the models (section-scene.ts), the raycast of the renderer is used instead: it leaves out what
+ * is cut away, which `Scene.raycast` only does with the clip state the renderer keeps to itself. It is slower in a
+ * large scene (once per gesture), but zooming does not stop short of what is not there.
  */
-export function sceneSurfaceFinder(renderer: Renderer): SurfaceFinder {
+export function sceneSurfaceFinder(renderer: SurfaceRenderer): SurfaceFinder {
   return (x, y, width, height) => {
     const state = useViewerStore.getState();
     if (isGeometryLoadStreaming(state)) return null;
+    if (renderer.hasActiveClipping()) {
+      return renderer.raycastScene(x, y, { isStreaming: false, hiddenIds: state.hiddenEntities, isolatedIds: state.isolatedEntities })?.intersection.point ?? null;
+    }
     const scene = renderer.getScene();
     if (!canRaycast(scene)) {
       if (!warned) console.warn('[BIMpeil] Scene.raycast is missing: zooming in falls back to IfcLite (surface-zoom.ts)');

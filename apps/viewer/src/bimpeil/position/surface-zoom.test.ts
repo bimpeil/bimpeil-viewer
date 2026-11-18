@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Camera } from '@ifc-lite/renderer';
-import { wrapSurfaceZoom, type SurfaceFinder } from './surface-zoom';
+import { sceneSurfaceFinder, wrapSurfaceZoom, type SurfaceFinder, type SurfaceRenderer } from './surface-zoom';
 
 const OBJECT_Z = 2;
 const WIDTH = 800;
@@ -114,4 +114,33 @@ test('unwrapping puts the zoom of IfcLite back', () => {
   camera.zoom(NOTCH_IN, false, WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, false);
   assert.equal(finds.length, 0);
   assert.ok(camera.getPosition().z < OBJECT_Z, 'back to the plain zoom');
+});
+
+test('the finder uses the fast raycast of the scene, and the raycast of the renderer while a section cuts (decision 19)', () => {
+  const camera = new Camera();
+  camera.setAspect(WIDTH / HEIGHT);
+  camera.setPosition(0, 0, 10);
+  camera.setTarget(0, 0, 0);
+  const calls: string[] = [];
+  let clipping = false;
+  const renderer: SurfaceRenderer = {
+    getScene: () => ({
+      raycast: () => {
+        calls.push('scene');
+        return { distance: 8 };
+      },
+    }),
+    getCamera: () => camera,
+    hasActiveClipping: () => clipping,
+    raycastScene: () => {
+      calls.push('renderer');
+      return { intersection: { point: { x: 0, y: 0, z: -1 } } };
+    },
+  };
+  const find = sceneSurfaceFinder(renderer);
+  const plain = find(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT);
+  assert.ok(plain && Math.abs(plain.z - 2) < 1e-9, `the point at the distance of the hit: ${JSON.stringify(plain)}`);
+  clipping = true;
+  assert.deepEqual(find(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT), { x: 0, y: 0, z: -1 });
+  assert.deepEqual(calls, ['scene', 'renderer']);
 });

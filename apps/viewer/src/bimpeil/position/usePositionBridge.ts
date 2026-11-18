@@ -14,7 +14,8 @@
  * - `bimpeil:position-move` `{ action, ... }` (MoveCommand below): start or stop moving a model, the reference model,
  *   pick a point in the 3D view, a move in metres, apply, cancel, an absolute turn about a pivot, undo, redo, reset,
  *   a view (all models, from above), and the origins of the models on or off; measure an angle (two points on the
- *   model, two on the reference), choose a pivot by clicking, stop clicking, and clear what was measured.
+ *   model, two on the reference), choose a pivot by clicking, stop clicking, and clear what was measured; a section,
+ *   horizontal or across X or Y, at a place of a slider (section-scene.ts).
  *
  * Moving starts at the origin of the model (the point 0,0,0 of its file) when it lies near the model, so the handles
  * of IfcLite stand there and not in the middle: the bridge sets that origin as the source point of the move, until a
@@ -48,6 +49,8 @@ import { clearMeasure, drawnPlacement, drawnPoint, measureSession, measureState,
 import { positionModels } from './models';
 import { renderBoxAround } from './origin';
 import { currentOrigins, originsShown, setOriginsShown, subscribeOriginsShown } from './origin-scene';
+import type { SectionDirection } from './section';
+import { applySection, sectionSession } from './section-scene';
 import { positionSession } from './session';
 import { turnAbout } from './turn';
 
@@ -77,7 +80,9 @@ export type MoveCommand =
   /** Stop clicking for measuring or the pivot */
   | { action: 'stopPick' }
   /** The measured lines and the chosen pivot go */
-  | { action: 'clearMeasure' };
+  | { action: 'clearMeasure' }
+  /** A section through all models: horizontal (`z`) or across X or Y, at a place of the slider (0 to 1 over the scene) */
+  | { action: 'section'; enabled: boolean; direction: SectionDirection; fraction: number; flipped: boolean };
 
 const isObject = (data: unknown): data is Record<string, unknown> => !!data && typeof data === 'object';
 const isTriple = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
@@ -97,6 +102,11 @@ export function parseMoveCommand(data: Record<string, unknown>): MoveCommand | n
   }
   if (a === 'view') return data.view === 'all' || data.view === 'top' ? { action: a, view: data.view } : null;
   if (a === 'basepoints') return typeof data.show === 'boolean' ? { action: a, show: data.show } : null;
+  if (a === 'section') {
+    const direction = data.direction === 'z' || data.direction === 'x' || data.direction === 'y' ? data.direction : null;
+    const ok = typeof data.enabled === 'boolean' && typeof data.flipped === 'boolean' && typeof data.fraction === 'number' && Number.isFinite(data.fraction);
+    return ok && direction ? { action: a, enabled: data.enabled as boolean, direction, fraction: data.fraction as number, flipped: data.flipped as boolean } : null;
+  }
   return null;
 }
 
@@ -140,6 +150,7 @@ export function usePositionBridge(): void {
       if (now.repositionOpen && !now.modelPlacement.preview && moving.length) now.openReposition([...moving]);
     };
 
+    let sectionSeq = 0;
     const move = (command: MoveCommand) => {
       const store = useViewerStore.getState();
       const rt = live.current.runtime;
@@ -230,6 +241,19 @@ export function usePositionBridge(): void {
           if (moving.length) store.resetModelTranslations(moving);
           reopen(moving);
           return;
+        case 'section': {
+          // Just after loading the bounds of the models may not be there yet: try again for ten seconds, unless a newer
+          // section command came in between. Whether the renderer cut is known after its next frame: report then.
+          const seq = ++sectionSeq;
+          const attempt = (left: number) => {
+            if (seq !== sectionSeq) return;
+            if (applySection(command)) window.setTimeout(() => sendSession.current(), 150);
+            else if (left > 0) window.setTimeout(() => attempt(left - 1), 250);
+            else reply({ type: 'bimpeil:position-error', message: 'The bounds of the models are not available yet.' });
+          };
+          attempt(40);
+          return;
+        }
         case 'basepoints':
           // BIMpeil's own markers; the basepoints of IfcLite stay off (origin-scene.ts)
           if (store.showModelBasepoints) store.toggleShowModelBasepoints();
@@ -315,7 +339,8 @@ export function usePositionBridge(): void {
         lastModels = modelsKey;
         reply({ type: 'bimpeil:position-models', models });
       }
-      const session = positionSession(state.repositionOpen, state.modelPlacement, live.current.runtime, originsShown(), measureSession());
+      const moving = state.modelPlacement.preview?.modelIds[0] ?? live.current.runtime?.selected[0] ?? null;
+      const session = positionSession(state.repositionOpen, state.modelPlacement, live.current.runtime, originsShown(), measureSession(), sectionSession(moving));
       const sessionKey = JSON.stringify(session);
       if (sessionKey !== lastSession) {
         lastSession = sessionKey;
@@ -327,7 +352,13 @@ export function usePositionBridge(): void {
     };
     sendSession.current = schedule;
     const unsubscribe = useViewerStore.subscribe((state, previous) => {
-      if (state.models === previous.models && state.modelPlacement === previous.modelPlacement && state.repositionOpen === previous.repositionOpen) return;
+      if (
+        state.models === previous.models &&
+        state.modelPlacement === previous.modelPlacement &&
+        state.repositionOpen === previous.repositionOpen &&
+        state.sectionPlane === previous.sectionPlane
+      )
+        return;
       schedule();
     });
     const unsubscribeOrigins = subscribeOriginsShown(schedule);

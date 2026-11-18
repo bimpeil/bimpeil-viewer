@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** BIMpeil: the state of moving as the page Positioning hears it (session.ts, BIMpeil IFC decision 5) */
+import { NO_SECTION } from './section';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { emptyPlacementState, type PlacementState } from '@/lib/model-placement/state';
@@ -12,7 +13,7 @@ const still = { translation: [0, 0, 0] as const, rotation: { angle: 0, pivot: [0
 
 test('closed: nothing moves, nothing is picked', () => {
   const s = positionSession(false, emptyPlacementState(), null);
-  assert.deepEqual(s, { open: false, moving: null, reference: null, role: null, delta: [0, 0, 0], previewing: false, source: null, target: null, hover: null, canUndo: false, canRedo: false, basepoints: false, error: null, measure: NO_MEASURE });
+  assert.deepEqual(s, { open: false, moving: null, reference: null, role: null, delta: [0, 0, 0], previewing: false, source: null, target: null, hover: null, canUndo: false, canRedo: false, basepoints: false, error: null, measure: NO_MEASURE, section: NO_SECTION });
 });
 
 test('open, picking a point on the model that moves, with a move shown', () => {

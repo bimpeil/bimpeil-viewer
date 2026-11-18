@@ -7,6 +7,7 @@
  * controls and needs to know which model moves, the move that is shown but not applied, what is being picked in the
  * 3D view and whether undo is possible. Pure, from the placement state of IfcLite and its reposition runtime.
  */
+import { NO_SECTION, type SectionSession } from './section';
 import type { PlacementState } from '@/lib/model-placement/state';
 import type { RepositionRuntime } from '@/lib/model-placement/reposition-runtime';
 
@@ -60,11 +61,20 @@ export interface PositionSession {
   error: string | null;
   /** Measuring an angle and choosing a pivot by clicking (measure-scene.ts) */
   measure: MeasureSession;
+  /** The section (section-scene.ts) */
+  section: SectionSession;
 }
 
 type RuntimeView = Pick<RepositionRuntime, 'selected' | 'reference' | 'role' | 'hover' | 'error'>;
 
-export function positionSession(open: boolean, placement: PlacementState, runtime: RuntimeView | null, basepoints = false, measure: MeasureSession = NO_MEASURE): PositionSession {
+export function positionSession(
+  open: boolean,
+  placement: PlacementState,
+  runtime: RuntimeView | null,
+  basepoints = false,
+  measure: MeasureSession = NO_MEASURE,
+  section: SectionSession = NO_SECTION,
+): PositionSession {
   const preview = placement.preview;
   const delta = (preview?.delta ?? [0, 0, 0]).map((v) => v + 0) as [number, number, number];
   return {
@@ -82,5 +92,6 @@ export function positionSession(open: boolean, placement: PlacementState, runtim
     basepoints,
     error: runtime?.error || null,
     measure,
+    section,
   };
 }
